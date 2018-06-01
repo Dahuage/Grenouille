@@ -13,9 +13,21 @@ start:
 	cli
 	cld
 	xorw	%ax,	%ax
+	xorw 	%bx,    %bx
+	xorw 	%cx,    %cx
+	xorw 	%dx,    %dx
+
+	xorw 	%di,    %di
+	xorw 	%si,    %si
+
+	xorw 	%sp,    %sp
+	xorw 	%bp,    %bp
+
 	movw	%ax,	%es
 	movw	%ax,	%ds
 	movw	%ax,	%ss
+	movw	%ax,	%fs
+	movw	%ax,	%gs
 /*
  * 	
  *  切换保护模式，与端口为$0x64的8042键盘控制器通讯。先测试键盘的输入
@@ -38,7 +50,7 @@ seta20.2:
 
 	lgdt	gdtdesc
 	movl	$0x1, 	%cr0
-	ljmp	$0x8,	$protectmode 
+	ljmp	$0x8,	$protectmode #jump to gdt[1]+protectmode
 
 
 protectmode:
@@ -56,20 +68,12 @@ spin:
 	jmp 	spin
 
 
+.p2align 2
 gdt:
-	0x0, 0x0
-	0x0, 0x0, 0x0, 0x0
-
+	SEG_NULLASM                            #gdt[0] null
+	SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)  #gdt[1] cs,read&x
+	SEG_ASM(STA_W      , 0x0, 0xffffffff)  #gdt[2] ds,write 
 
 gdtdesc:
-	.word	0x17
- 	.long	gdt
-
-
-
-
-
-
-
-	
-
+	.word	0x17 # 6bytes per gdt entry. thougth a 18 total
+ 	.long	gdt  # gdt base address -? SEG_NULLASM
