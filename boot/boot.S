@@ -71,8 +71,8 @@ spin:
 .p2align 2
 gdt:
 	SEG_NULLASM                            #gdt[0] null
-	SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)  #gdt[1] cs,read&x
-	SEG_ASM(STA_W      , 0x0, 0xffffffff)  #gdt[2] ds,write 
+	SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)  #gdt[1] cs,read&x, with 0x8 access this entry
+	SEG_ASM(STA_W      , 0x0, 0xffffffff)  #gdt[2] ds,write , with ox10 access this entry
 
 gdtdesc:
 	.word	0x17 # 6bytes per gdt entry. thougth a 18 total
