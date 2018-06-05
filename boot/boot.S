@@ -63,6 +63,12 @@ protectmode:
 	movw 	%ax, 	%ss
 	movw 	$0x0, 	$ebp
 	movw 	$start, $esp
+	/*
+	 * acturally, from now on, no more assembly.
+	 * if necessary on occasions when c was un-
+	 * able to do sth. we will implement the code
+	 * as c functions with inline assembly. 
+	 */ 
 	call	os_loader
 spin:
 	jmp 	spin
