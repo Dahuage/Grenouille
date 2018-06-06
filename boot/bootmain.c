@@ -180,13 +180,45 @@ struct elf_pro_hdr {
     uint32_t p_memsz;  // size of segment in memory (bigger if contains bss）
     uint32_t p_flags;  // read/write/execute bits
     uint32_t p_align;  // required alignment, invariably hardware page size
-}
+};
 
 struct elf_seg_hdr{
+    uint32_t sh_name;
+    uint32_t sh_type;
+    uint32_t sh_flags;
+    uint32_t sh_addr;
+    uint32_t sh_offset;
+    uint32_t sh_size;
+    uint32_t sh_link;
+    uint32_t sh_info;
+    uint32_t sh_addralign;
+    uint32_t sh_entsize;
+};
 
-}
 /* 现在可以从磁盘上讲elf header 读入内存 */
 
+#define SECTSIZE    512
+#define ELFHDR      ((struct elf_hdr *) 0x10000) // 就写在这里，爱谁谁。
+void
+main(void){
+    struct elf_pro_hdr *ph, eph;
+    read_elf_header(ELFHDR, 512*8, 0);
+    if (ELFHDR->e_magic != ELF_MAGIC)
+        goto bad;
 
+    ph = (struct elf_pro_hdr *)((uint8_t *)ELFHDR+ELFHDR->e_phoff);
+    eph = ph + ELFHDR->e_phnum;
+    while(ph<eph){
+        readseg(ph->p_pa, ph->p_memsz, ph->p_offset);
+        read_elf_header();
+        ph++;
+    }
+    ((void (*)(void)) (ELFHDR->e_entry))();
+
+bad:
+    outw(0x8A00, 0x8A00);
+    outw(0x8A00, 0x8E00);
+    while (1)
+}
 
 
