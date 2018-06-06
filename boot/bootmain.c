@@ -202,17 +202,25 @@ struct elf_seg_hdr{
 void
 main(void){
     struct elf_pro_hdr *ph, eph;
+    //读系统镜像的elf头到0x10000／64kb处
     read_elf_header(ELFHDR, 512*8, 0);
+
+    // 检查elf文件是否合法
     if (ELFHDR->e_magic != ELF_MAGIC)
         goto bad;
 
+    // 将程序各个段读到指定位置
+    // 第一个程序头段表指针
     ph = (struct elf_pro_hdr *)((uint8_t *)ELFHDR+ELFHDR->e_phoff);
+
+    // 最后一个程序头段表指针
     eph = ph + ELFHDR->e_phnum;
+
     while(ph<eph){
-        readseg(ph->p_pa, ph->p_memsz, ph->p_offset);
-        read_elf_header();
+        read_elf_header(ph->p_pa, ph->p_memsz, ph->p_offset);
         ph++;
     }
+    // 调起os的入口，永不返回
     ((void (*)(void)) (ELFHDR->e_entry))();
 
 bad:
