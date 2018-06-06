@@ -4,7 +4,7 @@
  * 1. 现在我们什么都没有，如何进行磁盘IO？
  * 2. 从磁盘上的什么位置开始读，写入内存的什么位置？
  * 3. os是以什么样的形式存在？
- * 4. 当完成以上步骤，如何封装bootloader为标准格式？
+ * 4. 当完成以上步骤，如何打包bootloader为标准格式？
  */
 
 
@@ -57,14 +57,38 @@ waitdisk(void) {
  * @para:addr内存地址
  * @para:secno扇区号
  */
- static void
- read_sector(u_int *addr, u_int secno){
-    /* 确保硬盘可读 */
+static void
+readsect(void *dst, u_int secno) {
+    //等待磁盘就绪
     waitdisk();
 
-    
- }
+    //要读写的扇区数量，1，交给0x1F2
+    outb(0x1F2, 1);
 
+    /*
+     * 采用LBA28逻辑扇区编址方法。一个扇区地址由28位组成。
+     * 扇区寻址范围为2^28扇区。硬盘大小=2^28*单扇区字节数
+     * 以下4行，设置起始扇区号。扇区号28位，分4次进行。以
+     * 8-8-8-4进行。
+     */
+    outb(0x1F3, secno & 0xFF);                
+    outb(0x1F4, (secno >> 8) & 0xFF);
+    outb(0x1F5, (secno >> 16) & 0xFF);
+    //高四位设置LBA模式,主硬盘,以及LBA地址 27～24
+    outb(0x1F6, ((secno >> 24) & 0xF) | 0xE0);
+
+    //请求读命令0x20发送给0x1F7
+    outb(0x1F7, 0x20);                      
+
+    //等待磁盘就绪
+    waitdisk();
+
+    /*
+     * 0x1F0为磁盘的数据端口
+     * 
+     */
+    insl(0x1F0, dst, SECTSIZE / 4);
+}
 
 
 /*
@@ -96,12 +120,27 @@ waitdisk(void) {
  * 4号扇区：os img
  */
 
-/* 现在，我们开始试着写一个读内核镜像elf header的函数 */
+/* 
+ * 现在，我们开始试着写一个读内核文件指定位置，指定大小的函数
+ * para@addr: 读到该内存位置
+ * para@count:读的字节数
+ * para@offset:从该位置开始读
+ * 注意：读硬盘必须以扇区为单位
+  */
 static void
 read_elf_header(u_int addr, u_int count, u_int offset){
+    // 根据要读的长度count，确定内存区域的结束为止
     u_int addr_end = addr + count;
-
-} 
+    // 如何offset不是整数个扇区，预留出多读部分的空间
+    addr -= offset % SECTSIZE;
+    // 将忽略字节转化为扇区，offset一定为正数，
+    sector_no = (offset / SECTSIZE) + 1;
+    while(addr < addr_end){
+        readsect((uint8_t*)addr, sector_no);
+        pa += SECTSIZE;
+        offset++;
+    }
+}
 
 /*
  * 问题3，os以什么格式存在---->elf,可执行&可链接文件
@@ -109,6 +148,7 @@ read_elf_header(u_int addr, u_int count, u_int offset){
  * 我们可以得知该文件的大小，起始位置，数据段，代码段等
  * 基本的信息.
  * 更多关于elf文件的信息参见https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
+ * 我们将以下两个结构整理到elf.h
  */
 
 /* 正如apue所述，可执行文件有个魔数 */
@@ -146,6 +186,7 @@ struct elf_seg_hdr{
 
 }
 /* 现在可以从磁盘上讲elf header 读入内存 */
+
 
 
 
