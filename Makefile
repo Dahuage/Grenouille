@@ -1,22 +1,47 @@
-PROJ	:= challenge
-EMPTY	:=
-SPACE	:= $(EMPTY) $(EMPTY)
-SLASH	:= /
+#
+# This makefile system follows the structuring conventions
+# recommended by Peter Miller in his excellent paper:
+#
+#	Recursive Make Considered Harmful
+#	http://aegis.sourceforge.net/auug97.pdf
+#
+OBJDIR := obj
 
-V       := @
-#need llvm/cang-3.5+
-#USELLVM := 1
-# try to infer the correct GCCPREFX
+# Run 'make V=1' to turn on verbose commands, or 'make V=0' to turn them off.
+ifeq ($(V),1)
+override V =
+endif
+ifeq ($(V),0)
+override V = @
+endif
+
+-include conf/lab.mk
+
+-include conf/env.mk
+
+LABSETUP ?= ./
+
+TOP = .
+
+# Cross-compiler jos toolchain
+#
+# This Makefile will automatically use the cross-compiler toolchain
+# installed as 'i386-jos-elf-*', if one exists.  If the host tools ('gcc',
+# 'objdump', and so forth) compile for a 32-bit x86 ELF target, that will
+# be detected as well.  If you have the right compiler toolchain installed
+# using a different name, set GCCPREFIX explicitly in conf/env.mk
+
+# try to infer the correct GCCPREFIX
 ifndef GCCPREFIX
-GCCPREFIX := $(shell if i386-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/dev/null 2>&1; \
-	then echo 'i386-elf-'; \
+GCCPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/dev/null 2>&1; \
+	then echo 'i386-jos-elf-'; \
 	elif objdump -i 2>&1 | grep 'elf32-i386' >/dev/null 2>&1; \
 	then echo ''; \
 	else echo "***" 1>&2; \
-	echo "*** Error: Couldn't find an i386-elf version of GCC/binutils." 1>&2; \
-	echo "*** Is the directory with i386-elf-gcc in your PATH?" 1>&2; \
-	echo "*** If your i386-elf toolchain is installed with a command" 1>&2; \
-	echo "*** prefix other than 'i386-elf-', set your GCCPREFIX" 1>&2; \
+	echo "*** Error: Couldn't find an i386-*-elf version of GCC/binutils." 1>&2; \
+	echo "*** Is the directory with i386-jos-elf-gcc in your PATH?" 1>&2; \
+	echo "*** If your i386-*-elf toolchain is installed with a command" 1>&2; \
+	echo "*** prefix other than 'i386-jos-elf-', set your GCCPREFIX" 1>&2; \
 	echo "*** environment variable to that prefix and run 'make' again." 1>&2; \
 	echo "*** To turn off this error, run 'gmake GCCPREFIX= ...'." 1>&2; \
 	echo "***" 1>&2; exit 1; fi)
@@ -24,246 +49,267 @@ endif
 
 # try to infer the correct QEMU
 ifndef QEMU
-QEMU := $(shell if which qemu-system-i386 > /dev/null; \
-	then echo 'qemu-system-i386'; exit; \
-	elif which i386-elf-qemu > /dev/null; \
-	then echo 'i386-elf-qemu'; exit; \
-	elif which qemu > /dev/null; \
-	then echo 'qemu'; exit; \
+QEMU := $(shell if which qemu >/dev/null 2>&1; \
+	then echo qemu; exit; \
+        elif which qemu-system-i386 >/dev/null 2>&1; \
+        then echo qemu-system-i386; exit; \
 	else \
+	qemu=/Applications/Q.app/Contents/MacOS/i386-softmmu.app/Contents/MacOS/i386-softmmu; \
+	if test -x $$qemu; then echo $$qemu; exit; fi; fi; \
 	echo "***" 1>&2; \
 	echo "*** Error: Couldn't find a working QEMU executable." 1>&2; \
 	echo "*** Is the directory containing the qemu binary in your PATH" 1>&2; \
-	echo "***" 1>&2; exit 1; fi)
+	echo "*** or have you tried setting the QEMU variable in conf/env.mk?" 1>&2; \
+	echo "***" 1>&2; exit 1)
 endif
 
-# eliminate default suffix rules
-.SUFFIXES: .c .S .h
+# try to generate a unique GDB port
+GDBPORT	:= $(shell expr `id -u` % 5000 + 25000)
 
-# delete target files if there is an error (or make is interrupted)
+CC	:= $(GCCPREFIX)gcc -pipe
+AS	:= $(GCCPREFIX)as
+AR	:= $(GCCPREFIX)ar
+LD	:= $(GCCPREFIX)ld
+OBJCOPY	:= $(GCCPREFIX)objcopy
+OBJDUMP	:= $(GCCPREFIX)objdump
+NM	:= $(GCCPREFIX)nm
+
+# Native commands
+NCC	:= gcc $(CC_VER) -pipe
+NATIVE_CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -I$(TOP) -MD -Wall
+TAR	:= gtar
+PERL	:= perl
+
+# Compiler flags
+# -fno-builtin is required to avoid refs to undefined functions in the kernel.
+# Only optimize to -O1 to discourage inlining, which complicates backtraces.
+CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O1 -fno-builtin -I$(TOP) -MD
+CFLAGS += -fno-omit-frame-pointer
+CFLAGS += -std=gnu99
+CFLAGS += -static
+CFLAGS += -Wall -Wno-format -Wno-unused -Werror -g -m32
+# -fno-tree-ch prevented gcc from sometimes reordering read_ebp() before
+# mon_backtrace()'s function prologue on gcc version: (Debian 4.7.2-5) 4.7.2
+# CFLAGS += -fno-tree-ch
+
+# Add -fno-stack-protector if the option exists.
+CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+
+# Common linker flags
+LDFLAGS := -m elf_i386
+
+# Linker flags for JOS user programs
+ULDFLAGS := -T user/user.ld
+
+GCC_LIB := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
+
+# Lists that the */Makefrag makefile fragments will add to
+OBJDIRS :=
+
+# Make sure that 'all' is the first target
+all:
+
+# Eliminate default suffix rules
+.SUFFIXES:
+
+# Delete target files if there is an error (or make is interrupted)
 .DELETE_ON_ERROR:
 
-# define compiler and flags
-ifndef  USELLVM
-HOSTCC		:= gcc
-HOSTCFLAGS	:= -g -Wall -O2
-CC		:= $(GCCPREFIX)gcc
-CFLAGS	:= -fno-builtin -Wall -ggdb -m32 -gstabs -nostdinc $(DEFS)
-CFLAGS	+= $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-else
-HOSTCC		:= clang
-HOSTCFLAGS	:= -g -Wall -O2
-CC		:= clang
-CFLAGS	:= -fno-builtin -Wall -g -m32 -mno-sse -nostdinc $(DEFS)
-CFLAGS	+= $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+# make it so that no intermediate .o files are ever deleted
+.PRECIOUS: %.o $(OBJDIR)/boot/%.o $(OBJDIR)/kern/%.o \
+	   $(OBJDIR)/lib/%.o $(OBJDIR)/fs/%.o $(OBJDIR)/net/%.o \
+	   $(OBJDIR)/user/%.o
+
+KERN_CFLAGS := $(CFLAGS) -DJOS_KERNEL -gstabs
+USER_CFLAGS := $(CFLAGS) -DJOS_USER -gstabs
+
+# Update .vars.X if variable X has changed since the last make run.
+#
+# Rules that use variable X should depend on $(OBJDIR)/.vars.X.  If
+# the variable's value has changed, this will update the vars file and
+# force a rebuild of the rule that depends on it.
+$(OBJDIR)/.vars.%: FORCE
+	$(V)echo "$($*)" | cmp -s $@ || echo "$($*)" > $@
+.PRECIOUS: $(OBJDIR)/.vars.%
+.PHONY: FORCE
+
+
+# Include Makefrags for subdirectories
+include boot/Makefrag
+# include kern/Makefrag
+
+
+QEMUOPTS = -drive file=$(OBJDIR)/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb tcp::$(GDBPORT)
+QEMUOPTS += $(shell if $(QEMU) -nographic -help | grep -q '^-D '; then echo '-D qemu.log'; fi)
+IMAGES = $(OBJDIR)/kern/kernel.img
+QEMUOPTS += $(QEMUEXTRA)
+
+.gdbinit: .gdbinit.tmpl
+	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
+
+gdb:
+	gdb -n -x .gdbinit
+
+pre-qemu: .gdbinit
+
+qemu: $(IMAGES) pre-qemu
+	$(QEMU) $(QEMUOPTS)
+
+qemu-nox: $(IMAGES) pre-qemu
+	@echo "***"
+	@echo "*** Use Ctrl-a x to exit qemu"
+	@echo "***"
+	$(QEMU) -nographic $(QEMUOPTS)
+
+qemu-gdb: $(IMAGES) pre-qemu
+	@echo "***"
+	@echo "*** Now run 'make gdb'." 1>&2
+	@echo "***"
+	$(QEMU) $(QEMUOPTS) -S
+
+qemu-nox-gdb: $(IMAGES) pre-qemu
+	@echo "***"
+	@echo "*** Now run 'make gdb'." 1>&2
+	@echo "***"
+	$(QEMU) -nographic $(QEMUOPTS) -S
+
+print-qemu:
+	@echo $(QEMU)
+
+print-gdbport:
+	@echo $(GDBPORT)
+
+# For deleting the build
+clean:
+	rm -rf $(OBJDIR) .gdbinit jos.in qemu.log
+
+realclean: clean
+	rm -rf lab$(LAB).tar.gz \
+		jos.out $(wildcard jos.out.*) \
+		qemu.pcap $(wildcard qemu.pcap.*) \
+		myapi.key
+
+distclean: realclean
+	rm -rf conf/gcc.mk
+
+ifneq ($(V),@)
+GRADEFLAGS += -v
 endif
-
-CTYPE	:= c S
-
-LD      := $(GCCPREFIX)ld
-LDFLAGS	:= -m $(shell $(LD) -V | grep elf_i386 2>/dev/null)
-LDFLAGS	+= -nostdlib
-
-OBJCOPY := $(GCCPREFIX)objcopy
-OBJDUMP := $(GCCPREFIX)objdump
-
-COPY	:= cp
-MKDIR   := mkdir -p
-MV		:= mv
-RM		:= rm -f
-AWK		:= awk
-SED		:= sed
-SH		:= sh
-TR		:= tr
-TOUCH	:= touch -c
-
-OBJDIR	:= obj
-BINDIR	:= bin
-
-ALLOBJS	:=
-ALLDEPS	:=
-TARGETS	:=
-
-include tools/function.mk
-
-listf_cc = $(call listf,$(1),$(CTYPE))
-
-# for cc
-add_files_cc = $(call add_files,$(1),$(CC),$(CFLAGS) $(3),$(2),$(4))
-create_target_cc = $(call create_target,$(1),$(2),$(3),$(CC),$(CFLAGS))
-
-# for hostcc
-add_files_host = $(call add_files,$(1),$(HOSTCC),$(HOSTCFLAGS),$(2),$(3))
-create_target_host = $(call create_target,$(1),$(2),$(3),$(HOSTCC),$(HOSTCFLAGS))
-
-cgtype = $(patsubst %.$(2),%.$(3),$(1))
-objfile = $(call toobj,$(1))
-asmfile = $(call cgtype,$(call toobj,$(1)),o,asm)
-outfile = $(call cgtype,$(call toobj,$(1)),o,out)
-symfile = $(call cgtype,$(call toobj,$(1)),o,sym)
-
-# for match pattern
-match = $(shell echo $(2) | $(AWK) '{for(i=1;i<=NF;i++){if(match("$(1)","^"$$(i)"$$")){exit 1;}}}'; echo $$?)
-
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# include kernel/user
-
-INCLUDE	+= libs/
-
-CFLAGS	+= $(addprefix -I,$(INCLUDE))
-
-LIBDIR	+= libs
-
-$(call add_files_cc,$(call listf_cc,$(LIBDIR)),libs,)
-
-# -------------------------------------------------------------------
-# kernel
-
-KINCLUDE	+= kern/debug/ \
-			   kern/driver/ \
-			   kern/trap/ \
-			   kern/mm/
-
-KSRCDIR		+= kern/init \
-			   kern/libs \
-			   kern/debug \
-			   kern/driver \
-			   kern/trap \
-			   kern/mm
-
-KCFLAGS		+= $(addprefix -I,$(KINCLUDE))
-
-$(call add_files_cc,$(call listf_cc,$(KSRCDIR)),kernel,$(KCFLAGS))
-
-KOBJS	= $(call read_packet,kernel libs)
-
-# create kernel target
-kernel = $(call totarget,kernel)
-
-$(kernel): tools/kernel.ld
-
-$(kernel): $(KOBJS)
-	@echo + ld $@
-	$(V)$(LD) $(LDFLAGS) -T tools/kernel.ld -o $@ $(KOBJS)
-	@$(OBJDUMP) -S $@ > $(call asmfile,kernel)
-	@$(OBJDUMP) -t $@ | $(SED) '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(call symfile,kernel)
-
-$(call create_target,kernel)
-
-# -------------------------------------------------------------------
-
-# create bootblock
-bootfiles = $(call listf_cc,boot)
-$(foreach f,$(bootfiles),$(call cc_compile,$(f),$(CC),$(CFLAGS) -Os -nostdinc))
-
-bootblock = $(call totarget,bootblock)
-
-$(bootblock): $(call toobj,$(bootfiles)) | $(call totarget,sign)
-	@echo + ld $@
-	$(V)$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 $^ -o $(call toobj,bootblock)
-	@$(OBJDUMP) -S $(call objfile,bootblock) > $(call asmfile,bootblock)
-	@$(OBJCOPY) -S -O binary $(call objfile,bootblock) $(call outfile,bootblock)
-	@$(call totarget,sign) $(call outfile,bootblock) $(bootblock)
-
-$(call create_target,bootblock)
-
-# -------------------------------------------------------------------
-
-# create 'sign' tools
-$(call add_files_host,tools/sign.c,sign,sign)
-$(call create_target_host,sign,sign)
-
-# -------------------------------------------------------------------
-
-# create ucore.img
-UCOREIMG	:= $(call totarget,ucore.img)
-
-$(UCOREIMG): $(kernel) $(bootblock)
-	$(V)dd if=/dev/zero of=$@ count=10000
-	$(V)dd if=$(bootblock) of=$@ conv=notrunc
-	$(V)dd if=$(kernel) of=$@ seek=1 conv=notrunc
-
-$(call create_target,ucore.img)
-
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-$(call finish_all)
-
-IGNORE_ALLDEPS	= clean \
-				  dist-clean \
-				  grade \
-				  touch \
-				  print-.+ \
-				  handin
-
-ifeq ($(call match,$(MAKECMDGOALS),$(IGNORE_ALLDEPS)),0)
--include $(ALLDEPS)
-endif
-
-# files for grade script
-
-TARGETS: $(TARGETS)
-
-.DEFAULT_GOAL := TARGETS
-
-.PHONY: qemu qemu-nox debug debug-nox
-qemu-mon: $(UCOREIMG)
-	$(V)$(QEMU)  -no-reboot -monitor stdio -hda $< -serial null
-qemu: $(UCOREIMG)
-	$(V)$(QEMU) -no-reboot -parallel stdio -hda $< -serial null
-log: $(UCOREIMG)
-	$(V)$(QEMU) -no-reboot -d int,cpu_reset  -D q.log -parallel stdio -hda $< -serial null
-qemu-nox: $(UCOREIMG)
-	$(V)$(QEMU)   -no-reboot -serial mon:stdio -hda $< -nographic
-TERMINAL        :=gnome-terminal
-debug: $(UCOREIMG)
-	$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
-	$(V)sleep 2
-	$(V)$(TERMINAL) -e "gdb -q -tui -x tools/gdbinit"
-	
-debug-nox: $(UCOREIMG)
-	$(V)$(QEMU) -S -s -serial mon:stdio -hda $< -nographic &
-	$(V)sleep 2
-	$(V)$(TERMINAL) -e "gdb -q -x tools/gdbinit"
-
-.PHONY: grade touch
-
-GRADE_GDB_IN	:= .gdb.in
-GRADE_QEMU_OUT	:= .qemu.out
-HANDIN			:= proj$(PROJ)-handin.tar.gz
-
-TOUCH_FILES		:= kern/trap/trap.c
-
-MAKEOPTS		:= --quiet --no-print-directory
 
 grade:
-	$(V)$(MAKE) $(MAKEOPTS) clean
-	$(V)$(SH) tools/grade.sh
+	@echo $(MAKE) clean
+	@$(MAKE) clean || \
+	  (echo "'make clean' failed.  HINT: Do you have another running instance of JOS?" && exit 1)
+	./grade-lab$(LAB) $(GRADEFLAGS)
 
-touch:
-	$(V)$(foreach f,$(TOUCH_FILES),$(TOUCH) $(f))
+git-handin: handin-check
+	@if test -n "`git config remote.handin.url`"; then \
+		echo "Hand in to remote repository using 'git push handin HEAD' ..."; \
+		if ! git push -f handin HEAD; then \
+            echo ; \
+			echo "Hand in failed."; \
+			echo "As an alternative, please run 'make tarball'"; \
+			echo "and visit http://pdos.csail.mit.edu/6.828/submit/"; \
+			echo "to upload lab$(LAB)-handin.tar.gz.  Thanks!"; \
+			false; \
+		fi; \
+    else \
+		echo "Hand-in repository is not configured."; \
+		echo "Please run 'make handin-prep' first.  Thanks!"; \
+		false; \
+	fi
 
-print-%:
-	@echo $($(shell echo $(patsubst print-%,%,$@) | $(TR) [a-z] [A-Z]))
+WEBSUB := https://6828.scripts.mit.edu/2017/handin.py
 
-.PHONY: clean dist-clean handin packall tags
-clean:
-	$(V)$(RM) $(GRADE_GDB_IN) $(GRADE_QEMU_OUT) cscope* tags
-	-$(RM) -r $(OBJDIR) $(BINDIR)
+handin: tarball-pref myapi.key
+	@SUF=$(LAB); \
+	test -f .suf && SUF=`cat .suf`; \
+	curl -f -F file=@lab$$SUF-handin.tar.gz -F key=\<myapi.key $(WEBSUB)/upload \
+	    > /dev/null || { \
+		echo ; \
+		echo Submit seems to have failed.; \
+		echo Please go to $(WEBSUB)/ and upload the tarball manually.; }
 
-dist-clean: clean
-	-$(RM) $(HANDIN)
+handin-check:
+	@if ! test -d .git; then \
+		echo No .git directory, is this a git repository?; \
+		false; \
+	fi
+	@if test "$$(git symbolic-ref HEAD)" != refs/heads/lab$(LAB); then \
+		git branch; \
+		read -p "You are not on the lab$(LAB) branch.  Hand-in the current branch? [y/N] " r; \
+		test "$$r" = y; \
+	fi
+	@if ! git diff-files --quiet || ! git diff-index --quiet --cached HEAD; then \
+		git status -s; \
+		echo; \
+		echo "You have uncomitted changes.  Please commit or stash them."; \
+		false; \
+	fi
+	@if test -n "`git status -s`"; then \
+		git status -s; \
+		read -p "Untracked files will not be handed in.  Continue? [y/N] " r; \
+		test "$$r" = y; \
+	fi
 
-handin: packall
-	@echo Please visit http://learn.tsinghua.edu.cn and upload $(HANDIN). Thanks!
+UPSTREAM := $(shell git remote -v | grep "pdos.csail.mit.edu/6.828/2017/jos.git (fetch)" | awk '{split($$0,a," "); print a[1]}')
 
-packall: clean
-	@$(RM) -f $(HANDIN)
-	@tar -czf $(HANDIN) `find . -type f -o -type d | grep -v '^\.*$$' | grep -vF '$(HANDIN)'`
+tarball-pref: handin-check
+	@SUF=$(LAB); \
+	if test $(LAB) -eq 3 -o $(LAB) -eq 4; then \
+		read -p "Which part would you like to submit? [a, b, c (c for lab 4 only)]" p; \
+		if test "$$p" != a -a "$$p" != b; then \
+			if test ! $(LAB) -eq 4 -o ! "$$p" = c; then \
+				echo "Bad part \"$$p\""; \
+				exit 1; \
+			fi; \
+		fi; \
+		SUF="$(LAB)$$p"; \
+		echo $$SUF > .suf; \
+	else \
+		rm -f .suf; \
+	fi; \
+	git archive --format=tar HEAD > lab$$SUF-handin.tar; \
+	git diff $(UPSTREAM)/lab$(LAB) > /tmp/lab$$SUF-diff.patch; \
+	tar -rf lab$$SUF-handin.tar /tmp/lab$$SUF-diff.patch; \
+	gzip -c lab$$SUF-handin.tar > lab$$SUF-handin.tar.gz; \
+	rm lab$$SUF-handin.tar; \
+	rm /tmp/lab$$SUF-diff.patch; \
 
-tags:
-	@echo TAGS ALL
-	$(V)rm -f cscope.files cscope.in.out cscope.out cscope.po.out tags
-	$(V)find . -type f -name "*.[chS]" >cscope.files
-	$(V)cscope -bq 
-	$(V)ctags -L cscope.files
+myapi.key:
+	@echo Get an API key for yourself by visiting $(WEBSUB)/
+	@read -p "Please enter your API key: " k; \
+	if test `echo "$$k" |tr -d '\n' |wc -c` = 32 ; then \
+		TF=`mktemp -t tmp.XXXXXX`; \
+		if test "x$$TF" != "x" ; then \
+			echo "$$k" |tr -d '\n' > $$TF; \
+			mv -f $$TF $@; \
+		else \
+			echo mktemp failed; \
+			false; \
+		fi; \
+	else \
+		echo Bad API key: $$k; \
+		echo An API key should be 32 characters long.; \
+		false; \
+	fi;
+
+#handin-prep:
+#	@./handin-prep
+
+
+# This magic automatically generates makefile dependencies
+# for header files included from C source files we compile,
+# and keeps those dependencies up-to-date every time we recompile.
+# See 'mergedep.pl' for more information.
+$(OBJDIR)/.deps: $(foreach dir, $(OBJDIRS), $(wildcard $(OBJDIR)/$(dir)/*.d))
+	@mkdir -p $(@D)
+	@$(PERL) mergedep.pl $@ $^
+
+-include $(OBJDIR)/.deps
+
+always:
+	@:
+
+.PHONY: all always \
+	handin git-handin tarball tarball-pref clean realclean distclean grade handin-prep handin-check

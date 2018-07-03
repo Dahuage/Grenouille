@@ -8,6 +8,11 @@
  */
 
 
+#include <defs.h> //类型宏
+#include <elf.h>  //elf结构声明
+#include <x86.h>  //x86底层io
+
+#define SECTSIZE    512
 /*
  * 先解决问题1，如何进行io
  * 汇编指令in port data/out data port指令进行io操作
@@ -20,37 +25,14 @@
  * 
  */
 
-/* 从指定端口读取一个字节 */ 
-static inline u_char
-inb(u_int port)
-{
-	u_char	data;
-	asm volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
-	return (data);
-}
-
-
-/* 从指定端口中读取半字到指定内存位置 */
-static inline void
-insl(u_int port, void *addr, size_t count)
-{
-	asm volatile(
-			 "cld; rep; insl"
-			 : "+D" (addr), "+c" (count)
-			 : "d" (port)
-			 : "memory");
-}
-
-/* 硬盘可读？ */
+/* 忙等硬盘可读 */
 static void
 waitdisk(void) {
     //从端口0x1F7读入一个字节
     //并测试其就绪位
-    //参见
     while ((inb(0x1F7) & 0xC0) != 0x40)
         /* do nothing */;
 }
-
 
 /* 
  * 试着搞一个硬盘读写函数，参照ucore 
@@ -58,7 +40,7 @@ waitdisk(void) {
  * @para:secno扇区号
  */
 static void
-readsect(void *dst, u_int secno) {
+readsect(void *dst, uint32_t secno) {
     //等待磁盘就绪
     waitdisk();
 
@@ -128,9 +110,9 @@ readsect(void *dst, u_int secno) {
  * 注意：读硬盘必须以扇区为单位
   */
 static void
-read_elf_header(u_int addr, u_int count, u_int offset){
+read_elf_header(uint32_t addr, uint32_t count, uint32_t offset){
     // 根据要读的长度count，确定内存区域的结束为止
-    u_int addr_end = addr + count;
+    uint32_t addr_end = addr + count;
     // 如何offset不是整数个扇区，预留出多读部分的空间
     addr -= offset % SECTSIZE;
     // 将忽略字节转化为扇区，offset一定为正数，
@@ -151,53 +133,9 @@ read_elf_header(u_int addr, u_int count, u_int offset){
  * 我们将以下两个结构整理到elf.h
  */
 
-/* 正如apue所述，可执行文件有个魔数 */
-#define		ELF_MAGIC	0x464C457FU // "\x7FELF" in little endian
-struct elf_hdr {
-	uint32_t e_magic;     // must equal ELF_MAGIC
-    uint8_t e_elf[12];
-    uint16_t e_type;      // 1=relocatable, 2=executable, 3=shared object, 4=core image
-    uint16_t e_machine;   // 3=x86, 4=68K, etc.
-    uint32_t e_version;   // file version, always 1
-    uint32_t e_entry;     // entry point if executable
-    uint32_t e_phoff;     // file position of program header or 0
-    uint32_t e_shoff;     // file position of section header or 0
-    uint32_t e_flags;     // architecture-specific flags, usually 0
-    uint16_t e_ehsize;    // size of this elf header
-    uint16_t e_phentsize; // size of an entry in program header
-    uint16_t e_phnum;     // number of entries in program header or 0
-    uint16_t e_shentsize; // size of an entry in section header
-    uint16_t e_shnum;     // number of entries in section header or 0
-    uint16_t e_shstrndx;  // section number that contains section name strings
-};
 
-struct elf_pro_hdr {
-	uint32_t p_type;   // loadable code or data, dynamic linking info,etc.
-    uint32_t p_offset; // file offset of segment
-    uint32_t p_va;     // virtual address to map segment
-    uint32_t p_pa;     // physical address, not used
-    uint32_t p_filesz; // size of segment in file
-    uint32_t p_memsz;  // size of segment in memory (bigger if contains bss）
-    uint32_t p_flags;  // read/write/execute bits
-    uint32_t p_align;  // required alignment, invariably hardware page size
-};
-
-struct elf_seg_hdr{
-    uint32_t sh_name;
-    uint32_t sh_type;
-    uint32_t sh_flags;
-    uint32_t sh_addr;
-    uint32_t sh_offset;
-    uint32_t sh_size;
-    uint32_t sh_link;
-    uint32_t sh_info;
-    uint32_t sh_addralign;
-    uint32_t sh_entsize;
-};
 
 /* 现在可以从磁盘上讲elf header 读入内存 */
-
-#define SECTSIZE    512
 #define ELFHDR      ((struct elf_hdr *) 0x10000) // 就写在这里，爱谁谁。
 void
 main(void){
