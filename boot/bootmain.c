@@ -1,6 +1,6 @@
 /*
  *
- * 现在我门开始从磁盘上读os到内存。先考虑以下几个问题
+ * 现在我门开始从磁盘上读os到内存。考虑以下几个问题
  * 1. 现在我们什么都没有，如何进行磁盘IO？
  * 2. 从磁盘上的什么位置开始读，写入内存的什么位置？
  * 3. os是以什么样的形式存在？
@@ -111,15 +111,15 @@ readsect(void *dst, uint32_t secno) {
   */
 static void
 read_elf_header(uint32_t addr, uint32_t count, uint32_t offset){
-    // 根据要读的长度count，确定内存区域的结束为止
+    // 根据要读的长度count，确定内存区域的结束位置
     uint32_t addr_end = addr + count;
     // 如何offset不是整数个扇区，预留出多读部分的空间
     addr -= offset % SECTSIZE;
     // 将忽略字节转化为扇区，offset一定为正数，
-    sector_no = (offset / SECTSIZE) + 1;
+    uint8_t sector_no = (offset / SECTSIZE) + 1;
     while(addr < addr_end){
         readsect((uint8_t*)addr, sector_no);
-        pa += SECTSIZE;
+        addr += SECTSIZE;
         offset++;
     }
 }
@@ -135,11 +135,11 @@ read_elf_header(uint32_t addr, uint32_t count, uint32_t offset){
 
 
 
-/* 现在可以从磁盘上讲elf header 读入内存 */
+/* 现在可以从磁盘上将elf header 读入内存 */
 #define ELFHDR      ((struct elf_hdr *) 0x10000) // 就写在这里，爱谁谁。
 void
 main(void){
-    struct elf_pro_hdr *ph, eph;
+    struct elf_pro_hdr *ph, *eph;
     //读系统镜像的elf头到0x10000／64kb处
     read_elf_header(ELFHDR, 512*8, 0);
 
@@ -164,7 +164,9 @@ main(void){
 bad:
     outw(0x8A00, 0x8A00);
     outw(0x8A00, 0x8E00);
-    while (1)
+    while (1){
+        // 
+    }
 }
 
 

@@ -95,7 +95,7 @@ gdt:
 	SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)  #gdt[1] cs,read&x, with 0x8 access this entry
 	SEG_ASM(STA_W      , 0x0, 0xffffffff)  #gdt[2] ds,write , with ox10 access this entry
 
-#this is the GDTR
+#the GDTR's content what is gdt address.
 gdtdesc:
 	.word	0x17 # gdt长度 6bytes per gdt entry. thougth a 18 total
  	.long	gdt  # gdt基址
