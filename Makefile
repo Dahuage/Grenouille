@@ -175,15 +175,15 @@ $(call create_target_host,sign,sign)
 
 # -------------------------------------------------------------------
 
-# create ucore.img
-UCOREIMG	:= $(call totarget,ucore.img)
+# create grenouille.img
+UCOREIMG	:= $(call totarget, grenouille.img)
 
 $(UCOREIMG): $(kernel) $(bootblock)
 	$(V)dd if=/dev/zero of=$@ count=10000
 	$(V)dd if=$(bootblock) of=$@ conv=notrunc
 	$(V)dd if=$(kernel) of=$@ seek=1 conv=notrunc
 
-$(call create_target,ucore.img)
+$(call create_target,grenouille.img)
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -215,7 +215,7 @@ log: $(UCOREIMG)
 	$(V)$(QEMU) -no-reboot -d int,cpu_reset  -D q.log -parallel stdio -hda $< -serial null
 qemu-nox: $(UCOREIMG)
 	$(V)$(QEMU)   -no-reboot -serial mon:stdio -hda $< -nographic
-TERMINAL        :=gnome-terminal
+TERMINAL        :=sh
 debug: $(UCOREIMG)
 	$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
 	$(V)sleep 2
