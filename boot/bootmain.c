@@ -138,7 +138,7 @@ read_elf_header(uint32_t addr, uint32_t count, uint32_t offset){
 /* 现在可以从磁盘上将elf header 读入内存 */
 #define ELFHDR      ((struct elf_hdr *) 0x10000) // 就写在这里，爱谁谁。
 void
-main(void){
+bootmain(void){
     struct elf_pro_hdr *ph, *eph;
     //读系统镜像的elf头到0x10000／64kb处
     read_elf_header(ELFHDR, 512*8, 0);
