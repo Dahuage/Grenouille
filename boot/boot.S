@@ -76,8 +76,8 @@ protectmode:
 	movw 	%ax,	%fs
 	movw 	%ax, 	%gs 
 	movw 	%ax, 	%ss
-	movl 	$0x0, 	$ebp
-	movl 	$start, $esp
+	movl 	$0x0, 	%ebp
+	movl 	$start, %esp
 	/*
 	 * acturally, from now on, no more assembly.
 	 * if necessary on occasions when c was un-
