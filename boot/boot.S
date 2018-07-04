@@ -84,7 +84,7 @@ protectmode:
 	 * able to do sth. we will implement the code
 	 * as c functions with inline assembly. 
 	 */ 
-	call	os_loader
+	call	bootmain
 spin:
 	jmp 	spin
 
