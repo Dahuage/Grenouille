@@ -39,8 +39,8 @@ seta20.1:
 	inb		$0x64,	%al	
 	testb	$0x2,	%al
 	jnz		seta20.1
-	movb	$0xd1	%al
-	outb	%al		$0x64
+	movb	$0xd1,	%al
+	outb	%al,	$0x64
 
 seta20.2:
 	inb		$0x60,	%al	
@@ -50,7 +50,7 @@ seta20.2:
 	outb	%al,	$0x60
 
 	lgdt	gdtdesc
-	movl	$0x1, 	%cr0
+	movb	$0x1, 	%cr0
 	ljmp	$0x8,	$protectmode #jump to gdt[1]+protectmode
 
 
@@ -62,8 +62,8 @@ protectmode:
 	movw 	%ax,	%fs
 	movw 	%ax, 	%gs 
 	movw 	%ax, 	%ss
-	movw 	$0x0, 	$ebp
-	movw 	$start, $esp
+	movl 	$0x0, 	$ebp
+	movl 	$start, $esp
 	/*
 	 * acturally, from now on, no more assembly.
 	 * if necessary on occasions when c was un-
