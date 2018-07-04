@@ -68,17 +68,16 @@ seta20.2:
     movl 	%eax, 	%cr0
 	ljmp	$0x8,	$protectmode #jump to gdt[1]+protectmode
 
-
-protectmode:
 .code32
-	movw 	$0x10, 	%ax
+protectmode:
+	movw 	$0x10, 	%ax #数据段寄存器就位, bin(0x10) = 0b10 00 0, 因此可得gdtr的索引为0b10=2
 	movw	%ax, 	%ds
 	movw 	%ax, 	%es
 	movw 	%ax,	%fs
 	movw 	%ax, 	%gs 
 	movw 	%ax, 	%ss
-	movw 	$0x0, 	$ebp
-	movw 	$start, $esp
+	movl 	$0x0, 	$ebp
+	movl 	$start, $esp
 	/*
 	 * acturally, from now on, no more assembly.
 	 * if necessary on occasions when c was un-
