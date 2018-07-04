@@ -8,7 +8,7 @@
  */
 
 
-.globle start
+.global start
 start:
 .code16
 	cli
@@ -61,7 +61,7 @@ seta20.2:
     #####################################################
     #cr3页目录物理页码| 00000000000000000000
     #####################################################
-    
+
     #开启cr0的b0位
     movl 	%cr0, 	%eax
     orl 	$0x1,  	%eax
@@ -77,8 +77,8 @@ protectmode:
 	movw 	%ax,	%fs
 	movw 	%ax, 	%gs 
 	movw 	%ax, 	%ss
-	movl 	$0x0, 	$ebp
-	movl 	$start, $esp
+	movw 	$0x0, 	$ebp
+	movw 	$start, $esp
 	/*
 	 * acturally, from now on, no more assembly.
 	 * if necessary on occasions when c was un-
@@ -96,6 +96,7 @@ gdt:
 	SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)  #gdt[1] cs,read&x, with 0x8 access this entry
 	SEG_ASM(STA_W      , 0x0, 0xffffffff)  #gdt[2] ds,write , with ox10 access this entry
 
+#this is the GDTR
 gdtdesc:
-	.word	0x17 # 6bytes per gdt entry. thougth a 18 total
- 	.long	gdt  # gdt base address -? SEG_NULLASM
+	.word	0x17 # gdt长度 6bytes per gdt entry. thougth a 18 total
+ 	.long	gdt  # gdt基址
