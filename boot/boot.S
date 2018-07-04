@@ -10,7 +10,7 @@
 
 .global start
 start:
-.code16
+	.code16
 	cli
 	cld
 	xorw	%ax,	%ax
@@ -76,7 +76,7 @@ protectmode:
 	movw 	%ax,	%fs
 	movw 	%ax, 	%gs 
 	movw 	%ax, 	%ss
-	movl 	$0x0, 	%ebp
+	# movl 	$0x0, 	%ebp
 	movl 	$start, %esp
 	/*
 	 * acturally, from now on, no more assembly.
