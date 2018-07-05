@@ -108,6 +108,7 @@ $(call add_files_cc,$(call listf_cc,$(LIBDIR)),libs,)
 
 # -------------------------------------------------------------------
 # kernel
+# 编译内核
 
 KINCLUDE	+= kern/debug/ \
 			   kern/driver/ \
@@ -142,13 +143,21 @@ $(call create_target,kernel)
 
 # -------------------------------------------------------------------
 
+#编译bootloader
 # create bootblock
-bootfiles = $(call listf_cc,boot)
+#列出boot
+bootfiles = $(call listf_cc, boot)
+#对boot下目录逐一编译
+#  for file in bootfiles:
+#		cc_compile(file, gcc, -flags -Os -nostdinc)
 $(foreach f,$(bootfiles),$(call cc_compile,$(f),$(CC),$(CFLAGS) -Os -nostdinc))
 
-bootblock = $(call totarget,bootblock)
+#设置bootblock的路径为  ./bin/bootblock
+bootblock = $(call totarget, bootblock)
 
-$(bootblock): $(call toobj,$(bootfiles)) | $(call totarget,sign)
+#将boot目录下所有的obj文件链接至 ./bin/bootblock
+#并加签名
+$(bootblock): $(call toobj, $(bootfiles)) | $(call totarget,sign)
 	@echo + ld $@
 	$(V)$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 $^ -o $(call toobj,bootblock)
 	@$(OBJDUMP) -S $(call objfile,bootblock) > $(call asmfile,bootblock)
@@ -160,21 +169,24 @@ $(call create_target,bootblock)
 
 # -------------------------------------------------------------------
 
+# 签名
 # create 'sign' tools
 $(call add_files_host,tools/sign.c,sign,sign)
 $(call create_target_host,sign,sign)
 
 # -------------------------------------------------------------------
 
+# boot+kernel= 生成镜像
 # create grenouille.img
-UCOREIMG	:= $(call totarget,grenouille.img)
+# UCOREIMG :=  bin/grenouille.img 
+UCOREIMG	:= $(call totarget, grenouille.img)
 
 $(UCOREIMG): $(kernel) $(bootblock)
 	$(V)dd if=/dev/zero of=$@ count=10000
 	$(V)dd if=$(bootblock) of=$@ conv=notrunc
 	$(V)dd if=$(kernel) of=$@ seek=1 conv=notrunc
 
-$(call create_target,grenouille.img)
+$(call create_target, grenouille.img)
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
