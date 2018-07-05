@@ -1,22 +1,21 @@
-PROJ	:= challenge
+PROJ	:= 5
 EMPTY	:=
 SPACE	:= $(EMPTY) $(EMPTY)
 SLASH	:= /
 
 V       := @
-#need llvm/cang-3.5+
-#USELLVM := 1
+
 # try to infer the correct GCCPREFX
 ifndef GCCPREFIX
-GCCPREFIX := $(shell if i386-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/dev/null 2>&1; \
-	then echo 'i386-elf-'; \
+GCCPREFIX := $(shell if i386-grenouille-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/dev/null 2>&1; \
+	then echo 'i386-grenouille-elf-'; \
 	elif objdump -i 2>&1 | grep 'elf32-i386' >/dev/null 2>&1; \
 	then echo ''; \
 	else echo "***" 1>&2; \
-	echo "*** Error: Couldn't find an i386-elf version of GCC/binutils." 1>&2; \
-	echo "*** Is the directory with i386-elf-gcc in your PATH?" 1>&2; \
-	echo "*** If your i386-elf toolchain is installed with a command" 1>&2; \
-	echo "*** prefix other than 'i386-elf-', set your GCCPREFIX" 1>&2; \
+	echo "*** Error: Couldn't find an i386-grenouille-elf version of GCC/binutils." 1>&2; \
+	echo "*** Is the directory with i386-grenouille-elf-gcc in your PATH?" 1>&2; \
+	echo "*** If your i386-grenouille-elf toolchain is installed with a command" 1>&2; \
+	echo "*** prefix other than 'i386-grenouille-elf-', set your GCCPREFIX" 1>&2; \
 	echo "*** environment variable to that prefix and run 'make' again." 1>&2; \
 	echo "*** To turn off this error, run 'gmake GCCPREFIX= ...'." 1>&2; \
 	echo "***" 1>&2; exit 1; fi)
@@ -26,10 +25,8 @@ endif
 ifndef QEMU
 QEMU := $(shell if which qemu-system-i386 > /dev/null; \
 	then echo 'qemu-system-i386'; exit; \
-	elif which i386-elf-qemu > /dev/null; \
-	then echo 'i386-elf-qemu'; exit; \
-	elif which qemu > /dev/null; \
-	then echo 'qemu'; exit; \
+	elif which i386-grenouille-elf-qemu > /dev/null; \
+	then echo 'i386-grenouille-elf-qemu'; exit; \
 	else \
 	echo "***" 1>&2; \
 	echo "*** Error: Couldn't find a working QEMU executable." 1>&2; \
@@ -44,20 +41,15 @@ endif
 .DELETE_ON_ERROR:
 
 # define compiler and flags
-ifndef  USELLVM
+
 HOSTCC		:= gcc
 HOSTCFLAGS	:= -g -Wall -O2
+
+GDB		:= $(GCCPREFIX)gdb
+
 CC		:= $(GCCPREFIX)gcc
 CFLAGS	:= -fno-builtin -Wall -ggdb -m32 -gstabs -nostdinc $(DEFS)
 CFLAGS	+= $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-else
-HOSTCC		:= clang
-HOSTCFLAGS	:= -g -Wall -O2
-CC		:= clang
-CFLAGS	:= -fno-builtin -Wall -g -m32 -mno-sse -nostdinc $(DEFS)
-CFLAGS	+= $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-endif
-
 CTYPE	:= c S
 
 LD      := $(GCCPREFIX)ld
@@ -76,6 +68,9 @@ SED		:= sed
 SH		:= sh
 TR		:= tr
 TOUCH	:= touch -c
+
+TAR		:= tar
+ZIP		:= gzip
 
 OBJDIR	:= obj
 BINDIR	:= bin
@@ -122,14 +117,17 @@ $(call add_files_cc,$(call listf_cc,$(LIBDIR)),libs,)
 KINCLUDE	+= kern/debug/ \
 			   kern/driver/ \
 			   kern/trap/ \
-			   kern/mm/
+			   kern/mm/ \
+			   kern/libs/ \
+			   kern/sync/
 
 KSRCDIR		+= kern/init \
 			   kern/libs \
 			   kern/debug \
 			   kern/driver \
 			   kern/trap \
-			   kern/mm
+			   kern/mm \
+			   kern/sync
 
 KCFLAGS		+= $(addprefix -I,$(KINCLUDE))
 
@@ -158,9 +156,9 @@ $(foreach f,$(bootfiles),$(call cc_compile,$(f),$(CC),$(CFLAGS) -Os -nostdinc))
 
 bootblock = $(call totarget,bootblock)
 
-$(bootblock): $(call toobj,$(bootfiles)) | $(call totarget,sign)
+$(bootblock): $(call toobj,boot/bootasm.S) $(call toobj,$(bootfiles)) | $(call totarget,sign)
 	@echo + ld $@
-	$(V)$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 $^ -o $(call toobj,bootblock)
+	$(V)$(LD) $(LDFLAGS) -N -T tools/boot.ld $^ -o $(call toobj,bootblock)
 	@$(OBJDUMP) -S $(call objfile,bootblock) > $(call asmfile,bootblock)
 	@$(OBJCOPY) -S -O binary $(call objfile,bootblock) $(call outfile,bootblock)
 	@$(call totarget,sign) $(call outfile,bootblock) $(bootblock)
@@ -176,7 +174,7 @@ $(call create_target_host,sign,sign)
 # -------------------------------------------------------------------
 
 # create grenouille.img
-UCOREIMG	:= $(call totarget, grenouille.img)
+UCOREIMG	:= $(call totarget,grenouille.img)
 
 $(UCOREIMG): $(kernel) $(bootblock)
 	$(V)dd if=/dev/zero of=$@ count=10000
@@ -189,8 +187,9 @@ $(call create_target,grenouille.img)
 
 $(call finish_all)
 
-IGNORE_ALLDEPS	= clean \
-				  dist-clean \
+IGNORE_ALLDEPS	= gdb \
+				  clean \
+				  distclean \
 				  grade \
 				  touch \
 				  print-.+ \
@@ -202,35 +201,38 @@ endif
 
 # files for grade script
 
-TARGETS: $(TARGETS)
+targets: $(TARGETS)
 
-.DEFAULT_GOAL := TARGETS
+.DEFAULT_GOAL := targets
+
+QEMUOPTS = -hda $(UCOREIMG)
 
 .PHONY: qemu qemu-nox debug debug-nox
 qemu-mon: $(UCOREIMG)
-	$(V)$(QEMU)  -no-reboot -monitor stdio -hda $< -serial null
+	$(V)$(QEMU) -monitor stdio $(QEMUOPTS) -serial null
 qemu: $(UCOREIMG)
-	$(V)$(QEMU) -no-reboot -parallel stdio -hda $< -serial null
-log: $(UCOREIMG)
-	$(V)$(QEMU) -no-reboot -d int,cpu_reset  -D q.log -parallel stdio -hda $< -serial null
-qemu-nox: $(UCOREIMG)
-	$(V)$(QEMU)   -no-reboot -serial mon:stdio -hda $< -nographic
-TERMINAL        :=sh
+	$(V)$(QEMU) -parallel stdio $(QEMUOPTS) -serial null
+
+qemu-nox: targets
+	$(V)$(QEMU) -serial mon:stdio $(QEMUOPTS) -nographic
+
+TERMINAL := gnome-terminal
+
 debug: $(UCOREIMG)
-	$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
+	$(V)$(QEMU) -S -s -parallel stdio $(QEMUOPTS) -serial null &
 	$(V)sleep 2
-	$(V)$(TERMINAL) -ec "gdb -q -tui -x tools/gdbinit"
-	
+	$(V)$(TERMINAL) -e "$(GDB) -q -x tools/gdbinit"
+
 debug-nox: $(UCOREIMG)
-	$(V)$(QEMU) -S -s -serial mon:stdio -hda $< -nographic &
+	$(V)$(QEMU) -S -s -serial mon:stdio $(QEMUOPTS) -nographic &
 	$(V)sleep 2
-	$(V)$(TERMINAL) -e "gdb -q -x tools/gdbinit"
+	$(V)$(TERMINAL) -e "$(GDB) -q -x tools/gdbinit"
 
 .PHONY: grade touch
 
 GRADE_GDB_IN	:= .gdb.in
 GRADE_QEMU_OUT	:= .qemu.out
-HANDIN			:= proj$(PROJ)-handin.tar.gz
+HANDIN			:= lab2-handin.tar.gz
 
 TOUCH_FILES		:= kern/trap/trap.c
 
@@ -246,24 +248,16 @@ touch:
 print-%:
 	@echo $($(shell echo $(patsubst print-%,%,$@) | $(TR) [a-z] [A-Z]))
 
-.PHONY: clean dist-clean handin packall tags
+.PHONY: clean distclean handin
 clean:
-	$(V)$(RM) $(GRADE_GDB_IN) $(GRADE_QEMU_OUT) cscope* tags
-	-$(RM) -r $(OBJDIR) $(BINDIR)
+	$(V)$(RM) $(GRADE_GDB_IN) $(GRADE_QEMU_OUT)
+	$(V)$(RM) -r $(OBJDIR) $(BINDIR)
 
-dist-clean: clean
-	-$(RM) $(HANDIN)
+distclean: clean
+	$(V)$(RM) $(HANDIN)
 
-handin: packall
-	@echo Please visit http://learn.tsinghua.edu.cn and upload $(HANDIN). Thanks!
+handin: distclean
+	$(V)$(TAR) -cf - `find . -type f -o -type d | grep -v '^\.$$' | grep -v '/CVS/' \
+					| grep -v '/\.git/' | grep -v '/\.svn/' | grep -v "$(HANDIN)"` \
+					| $(ZIP) > $(HANDIN)
 
-packall: clean
-	@$(RM) -f $(HANDIN)
-	@tar -czf $(HANDIN) `find . -type f -o -type d | grep -v '^\.*$$' | grep -vF '$(HANDIN)'`
-
-tags:
-	@echo TAGS ALL
-	$(V)rm -f cscope.files cscope.in.out cscope.out cscope.po.out tags
-	$(V)find . -type f -name "*.[chS]" >cscope.files
-	$(V)cscope -bq 
-	$(V)ctags -L cscope.files
