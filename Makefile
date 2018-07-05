@@ -156,7 +156,7 @@ $(foreach f,$(bootfiles),$(call cc_compile,$(f),$(CC),$(CFLAGS) -Os -nostdinc))
 
 bootblock = $(call totarget,bootblock)
 
-$(bootblock): $(call toobj,boot/bootasm.S) $(call toobj,$(bootfiles)) | $(call totarget,sign)
+$(bootblock): $(call toobj,boot/boot.S) $(call toobj,$(bootfiles)) | $(call totarget,sign)
 	@echo + ld $@
 	$(V)$(LD) $(LDFLAGS) -N -T tools/boot.ld $^ -o $(call toobj,bootblock)
 	@$(OBJDUMP) -S $(call objfile,bootblock) > $(call asmfile,bootblock)
