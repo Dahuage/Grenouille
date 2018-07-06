@@ -109,7 +109,6 @@ $(call add_files_cc,$(call listf_cc,$(LIBDIR)),libs,)
 # -------------------------------------------------------------------
 # kernel
 # 编译内核
-
 KINCLUDE	+= kern/debug/ \
 			   kern/driver/ \
 			   kern/trap/ \
@@ -165,7 +164,7 @@ $(bootblock): $(call toobj, $(bootfiles)) | $(call totarget,sign)
 	@$(OBJCOPY) -S -O binary $(call objfile,bootblock) $(call outfile,bootblock)
 	@$(call totarget,sign) $(call outfile,bootblock) $(bootblock)
 
-$(call create_target,bootblock)
+$(call create_target, bootblock)
 
 # -------------------------------------------------------------------
 
@@ -181,13 +180,40 @@ $(call create_target_host,sign,sign)
 # UCOREIMG :=  bin/grenouille.img 
 UCOREIMG	:= $(call totarget, grenouille.img)
 
+# /dev/null  ： 在类Unix系统中，/dev/null，或称空设备，是一个特殊的设备文件
+# 它丢弃一切写入其中的数据（但报告写入操作成功），读取它则会立即得到一个EOF。
+# 在程序员行话，尤其是Unix行话中，/dev/null 被称为位桶(bit bucket)或者黑洞(black hole)。
+# 空设备通常被用于丢弃不需要的输出流，或作为用于输入流的空文件。这些操作通常由重定向完成。
+
+
+# /dev/zero  ： 在类UNIX 操作系统中, /dev/zero 是一个特殊的文件，当你读它的时候
+# ，它会提供无限的空字符(NULL, ASCII NUL, 0x00)。
+# 其中的一个典型用法是用它提供的字符流来覆盖信息，另一个常见用法是产生一个特定大小的空白文件。
+# BSD就是通过mmap把/dev/zero映射到虚地址空间实现共享内存的。
+# 可以使用mmap将/dev/zero映射到一个虚拟的内存空间，这个操作的效果等同于使用一段匿名的内存
+# （没有和任何文件相关）。
+
+#  dd - 用于复制文件并对原文件的内容进行转换和格式化处理，有需要的时候使用dd 对物理磁盘操作
+# bs=<字节数>：将ibs（输入）与欧巴桑（输出）设成指定的字节数；
+# cbs=<字节数>：转换时，每次只转换指定的字节数；
+# conv=<关键字>：指定文件转换的方式；
+# count=<区块数>：仅读取指定的区块数；
+# ibs=<字节数>：每次读取的字节数；
+# obs=<字节数>：每次输出的字节数；
+# of=<文件>：输出到文件；
+# seek=<区块数>：一开始输出时，跳过指定的区块数；
+# skip=<区块数>：一开始读取时，跳过指定的区块数；
+# --help：帮助；
+# --version：显示版本信息。
+
+
+# $@--目标文件，$^--所有的依赖文件，$<--第一个依赖文件。
 $(UCOREIMG): $(kernel) $(bootblock)
 	$(V)dd if=/dev/zero of=$@ count=10000
 	$(V)dd if=$(bootblock) of=$@ conv=notrunc
 	$(V)dd if=$(kernel) of=$@ seek=1 conv=notrunc
 
 $(call create_target, grenouille.img)
-
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 $(call finish_all)
@@ -221,6 +247,7 @@ debug-mon: $(UCOREIMG)
 	$(V)$(TERMINAL) -e "gdb -q -x tools/moninit"
 qemu-mon: $(UCOREIMG)
 	$(V)$(QEMU) -monitor stdio -hda $< -serial null
+
 qemu: $(UCOREIMG)
 	$(V)$(QEMU) -parallel stdio -hda $< -serial null
 
@@ -232,7 +259,7 @@ gdb: $(UCOREIMG)
 debug: $(UCOREIMG)
 	$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
 	$(V)sleep 2
-	$(V)$(TERMINAL)  -e "cgdb -q -x tools/gdbinit"
+	$(V)$(TERMINAL)  -e "gdb -q -x tools/gdbinit"
 	
 debug-nox: $(UCOREIMG)
 	$(V)$(QEMU) -S -s -serial mon:stdio -hda $< -nographic &
