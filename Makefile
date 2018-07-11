@@ -248,8 +248,15 @@ debug-mon: $(UCOREIMG)
 qemu-mon: $(UCOREIMG)
 	$(V)$(QEMU) -monitor stdio -hda $< -serial null
 
+# -parallel dev
+#  Redirect the virtual parallel port to host device dev (same devices as the serial port). On Linux hosts, /dev/parportN can be used to use hardware devices
+#  connected on the corresponding host parallel port.
+#  This option can be used several times to simulate up to 3 parallel ports.
+#  Use "-parallel none" to disable all parallel ports.
+
 qemu: $(UCOREIMG)
-	$(V)$(QEMU) -parallel stdio -hda $< -serial null
+	$(V)$(QEMU) -parallel stdio -drive file=$<,index=0,media=disk -serial null
+	# $(V)$(QEMU) -parallel stdio -hda $< -serial null
 
 qemu-nox: $(UCOREIMG)
 	$(V)$(QEMU) -serial mon:stdio -hda $< -nographic
