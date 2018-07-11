@@ -2,7 +2,9 @@
 #include <x86.h>
 #include <stdio.h>
 #include <string.h>
+
 #include <kbdreg.h>
+
 #include <picirq.h>
 #include <trap.h>
 
