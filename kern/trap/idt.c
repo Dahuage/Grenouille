@@ -49,14 +49,27 @@ struct idt_entry_in_bits_field {
 };
 
 #define SET_IDTENTRY(gate,  isr_offset, idt_dpl, idt_is_trap, idt_slector){ \
-		(gate).idt_high_16_offset = isr_offset&0xffff;\
+		(gate).idt_high_16_offset = (isr_offset)&0xffff;\
 		(gate).idt_present = 1 ;\
 		(gate).idt_dpl = (idt_dpl);\
 		(gate).idt_s = 0;\
-		(gate).idt_type = idt_is_trap?0xF : 0xE;\
+		(gate).idt_type = (idt_is_trap)?0xF : 0xE;\
 		(gate).idt_unused = 0;\
-		(gate).idt_slector = idt_slector;\
+		(gate).idt_slector = (idt_slector);\
 		(gate).idt_lower_16_offset = isr_offset >> 16;\
+}
+
+
+#define SETGATE(gate, istrap, sel, off, dpl) {            \
+    (gate).gd_off_15_0 = (uint32_t)(off) & 0xffff;        \
+    (gate).gd_ss = (sel);                                \
+    (gate).gd_args = 0;                                    \
+    (gate).gd_rsv1 = 0;                                    \
+    (gate).gd_type = (istrap) ? STS_TG32 : STS_IG32;    \
+    (gate).gd_s = 0;                                    \
+    (gate).gd_dpl = (dpl);                                \
+    (gate).gd_p = 1;                                    \
+    (gate).gd_off_31_16 = (uint32_t)(off) >> 16;        \
 }
 
 static struct idt_entry_in_bits_field idt[256] = {{0}};
