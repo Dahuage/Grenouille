@@ -51,7 +51,7 @@ struct idt_entry_in_bits_field {
 #define SET_IDTENTRY(gate,  isr_offset, idt_dpl, idt_is_trap, idt_slector){ \
 		(gate).idt_high_16_offset = isr_offset&0xffff;\
 		(gate).idt_present = 1 ;\
-		(gate).idt_dpl = idt_dpl;\
+		(gate).idt_dpl = (idt_dpl);\
 		(gate).idt_s = 0;\
 		(gate).idt_type = idt_is_trap?0xF : 0xE;\
 		(gate).idt_unused = 0;\
