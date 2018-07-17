@@ -18,7 +18,7 @@
 #define GD_TSS        ((SEG_TSS) << 3)        // task segment selector
 
 #define DPL_KERNEL    (0)
-#define DPL_USER    (3)
+#define DPL_USER      (3)
 
 #define KERNEL_CS    ((GD_KTEXT) | DPL_KERNEL)
 #define KERNEL_DS    ((GD_KDATA) | DPL_KERNEL)
