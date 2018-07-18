@@ -48,56 +48,18 @@ struct idt_entry_in_bits_field {
 	unsigned idt_high_16_offset: 16;	//isr地址高16位 									48-63
 };
 
-// #define SET_IDTENTRY(gate,  isr_offset, idt_dpl, idt_is_trap, idt_slector){ \
-// 		(gate).idt_high_16_offset = (isr_offset) >> 16;\
-// 		(gate).idt_present = 1 ;\
-// 		(gate).idt_dpl = (idt_dpl);\
-// 		(gate).idt_s = 0;\
-// 		(gate).idt_type = (idt_is_trap)?0xF : 0xE;\
-// 		(gate).idt_unused = 0;\
-// 		(gate).idt_slector = (idt_slector);\
-// 		(gate).idt_lower_16_offset = (isr_offset) & 0xffff;\
-// }
 
 
- #define SET_IDTENTRY(gate, istrap, sel, off, dpl) {            \
-    (gate).idt_lower_16_offset = (uint32_t)(off) & 0xffff;        \
-    (gate).idt_slector = (sel);                                \
+#define SET_IDTENTRY(gate, idt_is_trap, idt_slector, isr_offset, idt_dpl) {            \
+    (gate).idt_lower_16_offset = (uint32_t)(isr_offset) & 0xffff;        \
+    (gate).idt_slector = (idt_slector);                                \
     (gate).idt_unused = 0;                                    \
-    (gate).idt_type = (istrap) ? 0xF : 0xE;   				 \
+    (gate).idt_type = (idt_is_trap) ? 0xF : 0xE;   				 \
     (gate).idt_s = 0;                                    \
-    (gate).idt_dpl = (dpl);                                \
+    (gate).idt_dpl = (idt_dpl);                                \
     (gate).idt_present = 1;                                    \
-    (gate).idt_high_16_offset = (uint32_t)(off) >> 16;        \
+    (gate).idt_high_16_offset = (uint32_t)(isr_offset) >> 16;        \
 }
-
-
-struct gatedesc {
-    unsigned gd_off_15_0 : 16;        // low 16 bits of offset in segment
-    unsigned gd_ss : 16;            // segment selector
-    unsigned gd_args : 5;            // # args, 0 for interrupt/trap gates
-    unsigned gd_rsv1 : 3;            // reserved(should be zero I guess)
-    unsigned gd_type : 4;            // type(STS_{TG,IG32,TG32})
-    unsigned gd_s : 1;                // must be 0 (system)
-    unsigned gd_dpl : 2;            // descriptor(meaning new) privilege level
-    unsigned gd_p : 1;                // Present
-    unsigned gd_off_31_16 : 16;        // high bits of offset in segment
- };
-
-
- #define SETGATE(gate, istrap, sel, off, dpl) {            \
-    (gate).gd_off_15_0 = (uint32_t)(off) & 0xffff;        \
-    (gate).gd_ss = (sel);                                \
-    (gate).gd_args = 0;                                    \
-    (gate).gd_rsv1 = 0;                                    \
-    (gate).gd_type = (istrap) ? STS_TG32 : STS_IG32;    \
-    (gate).gd_s = 0;                                    \
-    (gate).gd_dpl = (dpl);                                \
-    (gate).gd_p = 1;                                    \
-    (gate).gd_off_31_16 = (uint32_t)(off) >> 16;        \
-}
-
-
 
 static struct idt_entry_in_bits_field idt[256] = {{0}};
 static struct pseudodesc d = {sizeof(idt)-1, idt};
@@ -107,13 +69,11 @@ void
 init_idt(void){
 	int i;
 	extern uintptr_t __vectors[];
-    
     for (i = 0; i < sizeof(idt) / sizeof(struct idt_entry_in_bits_field); i ++) {
-        // SET_IDTENTRY(idt[i], __vectors[i], DPL_KERNEL, 0, GD_KTEXT);
         SET_IDTENTRY(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
     }
 	// set for switch from user to kernel
-    // SETGATE(idt[T_SWITCH_TOK],  __vectors[T_SWITCH_TOK], GD_KTEXT, 0, DPL_USER);
-	// load the IDT
+    SETGATE(idt[T_SWITCH_TOK],  __vectors[T_SWITCH_TOK], GD_KTEXT, 0, DPL_USER);
+	//载入idt到idtr
     lidt(&d);
 }
