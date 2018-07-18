@@ -61,6 +61,15 @@ struct idt_entry_in_bits_field {
     (gate).idt_high_16_offset = (uint32_t)(isr_offset) >> 16;        \
 }
 
+
+/* *
+ * Interrupt descriptor table:
+ *
+ * Must be built at run time because shifted function addresses can't
+ * be represented in relocation records.
+ * 
+ */
+
 static struct idt_entry_in_bits_field idt[256] = {{0}};
 static struct pseudodesc d = {sizeof(idt)-1, idt};
 
