@@ -38,25 +38,37 @@ struct idt_entry {
  *
  */
 struct idt_entry_in_bits_field {
-	unsigned idt_high_16_offset: 16;	//isr地址高16位 									48-63
-	unsigned idt_present: 1;            //本条是否在用   									47
-	unsigned idt_dpl: 2;                //段描述符的特权等级 								45-46
-	unsigned idt_s: 1;                  //存储段 Set to 0 for interrupt and trap gates	44
-	unsigned idt_type: 4;               //中断类型										40-43
-	unsigned idt_unused: 8;             //unused，0										32-39
-	unsigned idt_slector: 16;           //段描述符								16-31
 	unsigned idt_lower_16_offset: 16;   //isr地址低16位									0-15
+	unsigned idt_slector: 16;           //段描述符										16-31
+	unsigned idt_unused: 8;             //unused，0										32-39
+	unsigned idt_type: 4;               //中断类型										40-43
+	unsigned idt_s: 1;                  //存储段 Set to 0 for interrupt and trap gates	44
+	unsigned idt_dpl: 2;                //段描述符的特权等级 								45-46
+	unsigned idt_present: 1;            //本条是否在用   									47
+	unsigned idt_high_16_offset: 16;	//isr地址高16位 									48-63
 };
 
-#define SET_IDTENTRY(gate,  isr_offset, idt_dpl, idt_is_trap, idt_slector){ \
-		(gate).idt_high_16_offset = (isr_offset) >> 16;\
-		(gate).idt_present = 1 ;\
-		(gate).idt_dpl = (idt_dpl);\
-		(gate).idt_s = 0;\
-		(gate).idt_type = (idt_is_trap)?0xF : 0xE;\
-		(gate).idt_unused = 0;\
-		(gate).idt_slector = (idt_slector);\
-		(gate).idt_lower_16_offset = (isr_offset) & 0xffff;\
+// #define SET_IDTENTRY(gate,  isr_offset, idt_dpl, idt_is_trap, idt_slector){ \
+// 		(gate).idt_high_16_offset = (isr_offset) >> 16;\
+// 		(gate).idt_present = 1 ;\
+// 		(gate).idt_dpl = (idt_dpl);\
+// 		(gate).idt_s = 0;\
+// 		(gate).idt_type = (idt_is_trap)?0xF : 0xE;\
+// 		(gate).idt_unused = 0;\
+// 		(gate).idt_slector = (idt_slector);\
+// 		(gate).idt_lower_16_offset = (isr_offset) & 0xffff;\
+// }
+
+
+ #define SET_IDTENTRY(gate, istrap, sel, off, dpl) {            \
+    (gate).idt_lower_16_offset = (uint32_t)(off) & 0xffff;        \
+    (gate).idt_slector = (sel);                                \
+    (gate).idt_unused = 0;                                    \
+    (gate).idt_type = (istrap) ? 0xF : 0xE;   				 \
+    (gate).idt_s = 0;                                    \
+    (gate).idt_dpl = (dpl);                                \
+    (gate).idt_present = 1;                                    \
+    (gate).idt_high_16_offset = (uint32_t)(off) >> 16;        \
 }
 
 
@@ -97,8 +109,8 @@ init_idt(void){
 	extern uintptr_t __vectors[];
     
     for (i = 0; i < sizeof(idt) / sizeof(struct idt_entry_in_bits_field); i ++) {
-        SET_IDTENTRY(idt[i], __vectors[i], DPL_KERNEL, 0, GD_KTEXT);
-        // SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
+        // SET_IDTENTRY(idt[i], __vectors[i], DPL_KERNEL, 0, GD_KTEXT);
+        SET_IDTENTRY(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
     }
 	// set for switch from user to kernel
     // SETGATE(idt[T_SWITCH_TOK],  __vectors[T_SWITCH_TOK], GD_KTEXT, 0, DPL_USER);
