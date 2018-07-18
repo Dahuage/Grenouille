@@ -82,7 +82,6 @@ struct trapframe {
     uint16_t tf_padding5;
 } __attribute__((packed));
 
-void idt_init(void);
 void print_trapframe(struct trapframe *tf);
 void print_regs(struct pushregs *regs);
 bool trap_in_kernel(struct trapframe *tf);

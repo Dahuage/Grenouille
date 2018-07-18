@@ -9,6 +9,7 @@
 #include <intr.h>
 #include <pmm.h>
 #include <kmonitor.h>
+#include <idt.h>
 void kern_init(void) __attribute__((noreturn));
 void grade_backtrace(void);
 static void lab1_switch_test(void);
@@ -18,7 +19,11 @@ kern_init(void){
     extern char edata[], end[];
     memset(edata, 0, end - edata);
 
-    cons_init();                // init the console
+    /*
+     * 初始化显示器与键盘8042。无需过分关注
+     * 从此时起，可以开始使用stdio。
+     */
+    cons_init();
 
     const char *message = "(THU.CST) os is loading ...";
     cprintf("%s\n\n", message);
@@ -29,10 +34,10 @@ kern_init(void){
 
     pmm_init();                 // init physical memory management
 
-    pic_init();                 // init interrupt controller
+    pic_init();                 // init interrupt controller 8259A
     idt_init();                 // init interrupt descriptor table
 
-    clock_init();               // init clock interrupt
+    clock_init();               // init clock interrupt      8253
     intr_enable();              // enable irq interrupt
 
     //LAB1: CAHLLENGE 1 If you try to do it, uncomment lab1_switch_test()

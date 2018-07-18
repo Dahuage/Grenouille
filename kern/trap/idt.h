@@ -5,5 +5,4 @@ struct idt_entry;
 struct idt_entry_in_bits_field;
 void idt_init(void);
 
-
 #endif
