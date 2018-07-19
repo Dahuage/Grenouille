@@ -43,7 +43,7 @@ seta20.1:
     outb    %al,    $0x64
 
 seta20.2:
-    inb     $0x60,  %al 
+    inb     $0x64,  %al 
     testb   $0x2,   %al
     jnz     seta20.2
     movb    $0xdf,  %al
