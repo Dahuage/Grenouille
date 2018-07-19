@@ -1,6 +1,5 @@
 #include <x86.h>
 #include <defs.h>
-#include <idt.h>
 #include <memlayout.h>
 #include <trap.h>
 
