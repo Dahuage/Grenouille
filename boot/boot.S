@@ -13,7 +13,6 @@ start:
     .code16
     cli
     cld
-    call    dispstr
     xorw    %ax,    %ax
     xorw    %bx,    %bx
     xorw    %cx,    %cx
@@ -68,19 +67,6 @@ seta20.2:
     orl     $0x1,   %eax
     movl    %eax,   %cr0
     ljmp    $0x8,   $protectmode #jump to gdt[1]+protectmode
-
-msg:
-    .string "hello world"
-
-dispstr:
-    mov     $msg,   %ax
-    mov     %ax,    %bp                             /* es:bp = 串地址 */
-    mov     $12,    %cx                              /* cs = 串长度 */
-    mov     $0x1301,%ax                              /* ah=0x13：显示字符串 ,al=0x1：显示输出方式 */
-    mov     $0x000c,%bx                              /* bh=0 ：第0页,  bl=0xc ：高亮 黑底红字 */
-    mov     $0,     %dl                               /* 在0行0列显示*/
-    int     $0x10                                              /* 调用BIOS提供的int服务0x10的0x13功能：显示字符串 */ 
-    ret
 
 
 .code32

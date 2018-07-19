@@ -139,34 +139,34 @@ read_elf_header(uint32_t addr, uint32_t count, uint32_t offset){
 #define ELFHDR      ((struct elf_hdr *) 0x10000) // 就写在这里，爱谁谁。
 void
 bootmain(void){
-//     struct elf_pro_hdr *ph, *eph;
-//     //读系统镜像的elf头到0x10000／64kb处
-//     read_elf_header(ELFHDR, 512*8, 0);
+    struct elf_pro_hdr *ph, *eph;
+    //读系统镜像的elf头到0x10000／64kb处
+    read_elf_header(ELFHDR, 512*8, 0);
 
-//     // 检查elf文件是否合法
-//     if (ELFHDR->e_magic != ELF_MAGIC)
-//         goto bad;
+    // 检查elf文件是否合法
+    if (ELFHDR->e_magic != ELF_MAGIC)
+        goto bad;
 
-//     // 将程序各个段读到指定位置
-//     // 第一个程序头段表指针
-//     ph = (struct elf_pro_hdr *)((uint8_t *)ELFHDR+ELFHDR->e_phoff);
+    // 将程序各个段读到指定位置
+    // 第一个程序头段表指针
+    ph = (struct elf_pro_hdr *)((uint8_t *)ELFHDR+ELFHDR->e_phoff);
 
-//     // 最后一个程序头段表指针
-//     eph = ph + ELFHDR->e_phnum;
+    // 最后一个程序头段表指针
+    eph = ph + ELFHDR->e_phnum;
 
-//     while(ph<eph){
-//         read_elf_header(ph->p_pa, ph->p_memsz, ph->p_offset);
-//         ph++;
-//     }
-//     // 调起os的入口，永不返回
-//     ((void (*)(void)) (ELFHDR->e_entry))();
+    while(ph<eph){
+        read_elf_header(ph->p_pa, ph->p_memsz, ph->p_offset);
+        ph++;
+    }
+    // 调起os的入口，永不返回
+    ((void (*)(void)) (ELFHDR->e_entry))();
 
-// bad:
-//     outw(0x8A00, 0x8A00);
-//     outw(0x8A00, 0x8E00);
-//     while (1){
-//         // 
-//     }
+bad:
+    outw(0x8A00, 0x8A00);
+    outw(0x8A00, 0x8E00);
+    while (1){
+        // 
+    }
 }
 
 
