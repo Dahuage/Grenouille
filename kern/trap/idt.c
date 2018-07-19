@@ -49,40 +49,30 @@ struct idt_entry_in_bits_field {
 };
 
 
-
-#define SET_IDTENTRY(gate, idt_is_trap, idt_slector, isr_offset, idt_dpl) {            \
+#define SET_IDTENTRY(gate, is_trap, slector, isr_offset, dpl) { \
     (gate).idt_lower_16_offset = (uint32_t)(isr_offset) & 0xffff;        \
-    (gate).idt_slector = (idt_slector);                                \
+    (gate).idt_slector = (slector);                                \
     (gate).idt_unused = 0;                                    \
-    (gate).idt_type = (idt_is_trap) ? 0xF : 0xE;   				 \
+    (gate).idt_type = (is_trap) ? 0xF : 0xE;   				 \
     (gate).idt_s = 0;                                    \
-    (gate).idt_dpl = (idt_dpl);                                \
+    (gate).idt_dpl = (dpl);                                \
     (gate).idt_present = 1;                                    \
     (gate).idt_high_16_offset = (uint32_t)(isr_offset) >> 16;        \
 }
-
-
-/* *
- * Interrupt descriptor table:
- *
- * Must be built at run time because shifted function addresses can't
- * be represented in relocation records.
- * 
- */
 
 static struct idt_entry_in_bits_field idt[256] = {{0}};
 static struct pseudodesc d = {sizeof(idt)-1, idt};
 
 
 void
-init_idt(void){
+idt_init(void){
 	int i;
 	extern uintptr_t __vectors[];
     for (i = 0; i < sizeof(idt) / sizeof(struct idt_entry_in_bits_field); i ++) {
         SET_IDTENTRY(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
     }
 	// set for switch from user to kernel
-    SETGATE(idt[T_SWITCH_TOK],  __vectors[T_SWITCH_TOK], GD_KTEXT, 0, DPL_USER);
+    SET_IDTENTRY(idt[T_SWITCH_TOK], 0, GD_KTEXT,  __vectors[T_SWITCH_TOK],  DPL_USER);
 	//载入idt到idtr
     lidt(&d);
 }

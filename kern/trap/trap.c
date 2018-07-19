@@ -9,7 +9,7 @@
 #include <console.h>
 #include <kdebug.h>
 #include <string.h>
-#include <idt.h>
+
 #define TICK_NUM 100
 
 static void print_ticks() {
