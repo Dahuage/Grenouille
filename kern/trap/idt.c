@@ -69,7 +69,6 @@ struct idt_entry_in_bits_field {
  * be represented in relocation records.
  * 
  */
-
 static struct idt_entry_in_bits_field idt[256] = {{0}};
 static struct pseudodesc d = {sizeof(idt)-1, idt};
 

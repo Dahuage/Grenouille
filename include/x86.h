@@ -25,6 +25,7 @@ static inline void outw(uint16_t port, uint16_t data) __attribute__((always_inli
 static inline uint32_t read_ebp(void) __attribute__((always_inline));
 
 /* Pseudo-descriptors used for LGDT, LLDT(not used) and LIDT instructions. */
+// idt或gdt的伪描述符
 struct pseudodesc {
     uint16_t pd_lim;        // Limit
     uint32_t pd_base;        // Base address
@@ -56,17 +57,19 @@ insl(uint32_t port, void *addr, int cnt) {
             : "memory", "cc");
 }
 
-
+// 向指定端口写一个字节
 static inline void
 outb(uint16_t port, uint8_t data) {
     asm volatile ("outb %0, %1" :: "a" (data), "d" (port));
 }
 
+// 向指定端口写一个字
 static inline void
 outw(uint16_t port, uint16_t data) {
     asm volatile ("outw %0, %1" :: "a" (data), "d" (port));
 }
 
+// 读栈基址
 static inline uint32_t
 read_ebp(void) {
     uint32_t ebp;
@@ -74,21 +77,25 @@ read_ebp(void) {
     return ebp;
 }
 
+// 载入中断描述符表
 static inline void
 lidt(struct pseudodesc *pd) {
     asm volatile ("lidt (%0)" :: "r" (pd));
 }
 
+// 开启中断
 static inline void
 sti(void) {
     asm volatile ("sti");
 }
 
+// 屏蔽中断
 static inline void
 cli(void) {
     asm volatile ("cli");
 }
 
+// LTR指令是专门用于装载任务状态段寄存器TR的指令
 static inline void
 ltr(uint16_t sel) {
     asm volatile ("ltr %0" :: "r" (sel));
