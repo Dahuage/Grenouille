@@ -7,28 +7,27 @@
  *
  */
 
-
+.code16
 .global start
 start:
-    .code16
     cli
     cld
     xorw    %ax,    %ax
-    xorw    %bx,    %bx
-    xorw    %cx,    %cx
-    xorw    %dx,    %dx
+    # xorw    %bx,    %bx
+    # xorw    %cx,    %cx
+    # xorw    %dx,    %dx
 
-    xorw    %di,    %di
-    xorw    %si,    %si
+    # xorw    %di,    %di
+    # xorw    %si,    %si
 
-    xorw    %sp,    %sp
-    xorw    %bp,    %bp
+    # xorw    %sp,    %sp
+    # xorw    %bp,    %bp
 
     movw    %ax,    %es
     movw    %ax,    %ds
     movw    %ax,    %ss
-    movw    %ax,    %fs
-    movw    %ax,    %gs
+    # movw    %ax,    %fs
+    # movw    %ax,    %gs
 /*
  *  
  *  切换保护模式，与端口为$0x64的8042键盘控制器通讯。先测试键盘的输入
@@ -100,5 +99,5 @@ gdt:
 #the GDTR's content what is gdt address.
 #gdt-entry 
 gdtdesc:
-    .word   0x17 # gdt长度 6bytes per gdt entry. thougth a 18 total
+    .word   0x17 # gdt长度 8bytes per gdt entry. thougth a 24 total
     .long   gdt  # gdt基址

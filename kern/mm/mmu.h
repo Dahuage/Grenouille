@@ -66,6 +66,39 @@ struct segdesc {
     unsigned sd_base_31_24 : 8;        // high bits of segment base address
 };
 
+
+struct gdt_entry_in_bits_fields {
+    unsigned seg_des_limit_0_15 : 16;
+    unsigned seg_des_base_0_15 : 16;
+    unsigned seg_des_base_16_23 : 8;
+    // unsigned seg_des_access : 8;
+    unsigned seg_des_access_ac : 1;
+    unsigned seg_des_access_rw : 1;
+    unsigned seg_des_access_dc : 1;
+    unsigned seg_des_access_ex : 1;
+    unsigned seg_des_access_01 : 1;
+    unsigned seg_des_access_privl : 2;
+    unsigned seg_des_access_pr : 1;
+    
+    unsigned seg_des_limit_16_19 : 4;
+    // unsigned seg_des_flags : 4;
+    unsigned seg_des_flags_01 : 1;
+    unsigned seg_des_flags_02 : 1;
+    unsigned seg_des_flags_sz : 1;
+    unsigned seg_des_flags_gr : 1;
+    unsigned seg_des_base_24_31: 8;
+}
+
+
+
+
+
+
+
+
+
+
+
 #define SEG_NULL                                            \
     (struct segdesc){0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
