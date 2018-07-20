@@ -255,8 +255,8 @@ qemu-mon: $(UCOREIMG)
 #  Use "-parallel none" to disable all parallel ports.
 
 qemu: $(UCOREIMG)
-	$(V)$(QEMU) -parallel stdio -drive file=$<,index=0,media=disk -serial null
-	# $(V)$(QEMU) -parallel stdio -hda $< -serial null
+	# $(V)$(QEMU) -parallel stdio -drive file=$<,index=0,media=disk -serial null
+	$(V)$(QEMU) -parallel stdio -hda $< -serial null
 
 qemu-nox: $(UCOREIMG)
 	$(V)$(QEMU) -serial mon:stdio -hda $< -nographic
