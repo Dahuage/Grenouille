@@ -87,7 +87,7 @@ struct gdt_entry_in_bits_fields {
     unsigned seg_des_flags_sz : 1;
     unsigned seg_des_flags_gr : 1;
     unsigned seg_des_base_24_31: 8;
-}
+};
 
 
 

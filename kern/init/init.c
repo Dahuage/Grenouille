@@ -30,19 +30,19 @@ kern_init(void){
 
     print_kerninfo();
 
-    grade_backtrace();
+    // grade_backtrace();
 
-    pmm_init();                 // init physical memory management
+    // pmm_init();                 // init physical memory management
 
-    pic_init();                 // init interrupt controller 8259A
-    idt_init();                 // init interrupt descriptor table
+    // pic_init();                 // init interrupt controller 8259A
+    // idt_init();                 // init interrupt descriptor table
 
-    clock_init();               // init clock interrupt      8253
-    intr_enable();              // enable irq interrupt
+    // clock_init();               // init clock interrupt      8253
+    // intr_enable();              // enable irq interrupt
 
-    //LAB1: CAHLLENGE 1 If you try to do it, uncomment lab1_switch_test()
-    // user/kernel mode switch test
-    lab1_switch_test();
+    // //LAB1: CAHLLENGE 1 If you try to do it, uncomment lab1_switch_test()
+    // // user/kernel mode switch test
+    // lab1_switch_test();
 
     /* do nothing */
     while (1);
