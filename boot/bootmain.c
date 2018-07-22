@@ -107,9 +107,9 @@ readsect(void *dst, uint32_t secno) {
  * 注意：读硬盘必须以扇区为单位
   */
 static void
-read_elf_header(uint32_t addr, uint32_t count, uint32_t offset){
+read_elf_header(uintptr_t addr, uint32_t count, uint32_t offset){
     // 根据要读的长度count，确定内存区域的结束位置
-    uint32_t addr_end = addr + count;
+    uintptr_t addr_end = addr + count;
     // 如何offset不是整数个扇区，预留出多读部分的空间
     addr -= offset % SECTSIZE;
     // 将忽略字节转化为扇区，offset一定为正数，
@@ -131,37 +131,32 @@ read_elf_header(uint32_t addr, uint32_t count, uint32_t offset){
  */
 
 
-
-/* 现在可以从磁盘上将elf header 读入内存 */
-#define ELFHDR      ((struct elf_hdr *)0x10000) // 就写在这里，爱谁谁。
 void
 bootmain(void){
+    /* 现在可以从磁盘上将elf header 读入内存 */
     //读系统镜像的elf头到0x10000／64kb处
-    read_elf_header((uintptr_t)ELFHDR, 512*8, 0);
+    //
+    struct elf_hdr *kernel_elf_header;
+    kernel_elf_header = (struct kernel_elf_header *)0x10000; // 就写在这里，爱谁谁。
+
+    read_elf_header((uintptr_t)kernel_elf_header, 512*8, 0);
     // 检查elf文件是否合法
-    if (ELFHDR->e_magic != ELF_MAGIC)
+    if (kernel_elf_header->e_magic != ELF_MAGIC)
         return;
 
     struct elf_pro_hdr *ph, *end_ph;
     // 将程序各个段读到指定位置
     // 第一个程序头段表指针
-    ph = (struct elf_pro_hdr *)((uintptr_t)ELFHDR+ELFHDR->e_phoff);
-
+    ph = (struct elf_pro_hdr *)((uintptr_t)kernel_elf_header+kernel_elf_header->e_phoff);
+ 
     // 最后一个程序头段表指针
-    end_ph = ph + ELFHDR->e_phnum;
+    end_ph = ph + kernel_elf_header->e_phnum;
     while(ph<end_ph){
         read_elf_header(ph->p_pa, ph->p_memsz, ph->p_offset);
         ph++;
     }
     // 调起os的入口，永不返回
-    ((void (*)(void)) (ELFHDR->e_entry))();
-
-bad:
-    outw(0x8A00, 0x8A00);
-    outw(0x8A00, 0x8E00);
-    while (1){
-        // 
-    }
+    ((void (*)(void)) (kernel_elf_header->e_entry))();
 }
 
 

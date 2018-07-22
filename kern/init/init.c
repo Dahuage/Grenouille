@@ -25,7 +25,8 @@ kern_init(void){
      */
     cons_init();
 
-    const char *message = "(THU.CST) os is loading ...";
+    const char *message = "grenouille has been loaded! initing ...";
+    // const char *dahua = "棒棒的 大华";
     cprintf("%s\n\n", message);
 
     print_kerninfo();
