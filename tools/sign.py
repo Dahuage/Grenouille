@@ -11,13 +11,13 @@ def main():
 		printf("boot block cat not greater than 510B")
 		return -1
 	buf = BytesIO()
-	with open(boot_block_path, 'r+') as f:
+	with open(boot_block_path, 'rb') as f:
 		buf.write(f.read())
 	buf.seek(510)
 	buf.write(0x55)
 	buf.seek(511)
 	buf.write(0xAA)
-	with open(boot_block_path, 'wb+') as f:
+	with open(boot_block_path, 'wb') as f:
 		f.seek(0)
 		f.write(buf.read())
 	return 0
