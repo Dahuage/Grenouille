@@ -14,9 +14,9 @@ def main():
 	with open(boot_block_path, 'rb') as f:
 		buf.write(f.read())
 	buf.seek(510)
-	buf.write(0x55)
+	buf.write(bytes(0x55))
 	buf.seek(511)
-	buf.write(0xAA)
+	buf.write(bytes(0xAA))
 	with open(boot_block_path, 'wb') as f:
 		f.seek(0)
 		f.write(buf.read())
