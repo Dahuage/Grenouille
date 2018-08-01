@@ -7,7 +7,7 @@ from io import BytesIO
 def main():
 	boot_block_path = sys.argv[1]
 	stat = os.stat(boot_block_path)
-	if stat.stat_size > 510:
+	if stat.st_size > 510:
 		printf("boot block cat not greater than 510B")
 		return -1
 	buf = BytesIO()
