@@ -19,7 +19,8 @@ def main():
 	buf.write(bytes(0xAA))
 	with open(boot_block_path, 'wb') as f:
 		f.seek(0)
-		f.write(buf.read())
+		print("holy fuck:", buf.getvalue())
+		f.write(buf.getvalue())
 	return 0
 
 if __name__ == '__main__':
