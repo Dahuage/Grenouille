@@ -1,310 +1,282 @@
-PROJ	:= challenge
-EMPTY	:=
-SPACE	:= $(EMPTY) $(EMPTY)
-SLASH	:= /
+OBJS = \
+	init.o\
+	# bio.o\
+	# console.o\
+	# exec.o\
+	# file.o\
+	# fs.o\
+	# ide.o\
+	# ioapic.o\
+	# kalloc.o\
+	# kbd.o\
+	# lapic.o\
+	# log.o\
+	# main.o\
+	# mp.o\
+	# picirq.o\
+	# pipe.o\
+	# proc.o\
+	# sleeplock.o\
+	# spinlock.o\
+	# string.o\
+	# swtch.o\
+	# syscall.o\
+	# sysfile.o\
+	# sysproc.o\
+	# trapasm.o\
+	# trap.o\
+	# uart.o\
+	# vectors.o\
+	# vm.o\
 
-V       := @
+# Cross-compiling (e.g., on Mac OS X)
+# TOOLPREFIX = i386-jos-elf
 
-# try to infer the correct GCCPREFX
-ifndef GCCPREFIX
-GCCPREFIX := $(shell if i386-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/dev/null 2>&1; \
-	then echo 'i386-elf-'; \
+# Using native tools (e.g., on X86 Linux)
+#TOOLPREFIX = 
+
+# Try to infer the correct TOOLPREFIX if not set
+ifndef TOOLPREFIX
+TOOLPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/dev/null 2>&1; \
+	then echo 'i386-jos-elf-'; \
 	elif objdump -i 2>&1 | grep 'elf32-i386' >/dev/null 2>&1; \
 	then echo ''; \
 	else echo "***" 1>&2; \
-	echo "*** Error: Couldn't find an i386-elf version of GCC/binutils." 1>&2; \
-	echo "*** Is the directory with i386-elf-gcc in your PATH?" 1>&2; \
-	echo "*** If your i386-elf toolchain is installed with a command" 1>&2; \
-	echo "*** prefix other than 'i386-elf-', set your GCCPREFIX" 1>&2; \
+	echo "*** Error: Couldn't find an i386-*-elf version of GCC/binutils." 1>&2; \
+	echo "*** Is the directory with i386-jos-elf-gcc in your PATH?" 1>&2; \
+	echo "*** If your i386-*-elf toolchain is installed with a command" 1>&2; \
+	echo "*** prefix other than 'i386-jos-elf-', set your TOOLPREFIX" 1>&2; \
 	echo "*** environment variable to that prefix and run 'make' again." 1>&2; \
-	echo "*** To turn off this error, run 'gmake GCCPREFIX= ...'." 1>&2; \
+	echo "*** To turn off this error, run 'gmake TOOLPREFIX= ...'." 1>&2; \
 	echo "***" 1>&2; exit 1; fi)
 endif
 
-# try to infer the correct QEMU
+# If the makefile can't find QEMU, specify its path here
+# QEMU = qemu-system-i386
+
+# Try to infer the correct QEMU
 ifndef QEMU
-QEMU := $(shell if which qemu-system-i386 > /dev/null; \
-	then echo 'qemu-system-i386'; exit; \
-	elif which i386-elf-qemu > /dev/null; \
-	then echo 'i386-elf-qemu'; exit; \
+QEMU = $(shell if which qemu > /dev/null; \
+	then echo qemu; exit; \
+	elif which qemu-system-i386 > /dev/null; \
+	then echo qemu-system-i386; exit; \
+	elif which qemu-system-x86_64 > /dev/null; \
+	then echo qemu-system-x86_64; exit; \
 	else \
+	qemu=/Applications/Q.app/Contents/MacOS/i386-softmmu.app/Contents/MacOS/i386-softmmu; \
+	if test -x $$qemu; then echo $$qemu; exit; fi; fi; \
 	echo "***" 1>&2; \
 	echo "*** Error: Couldn't find a working QEMU executable." 1>&2; \
 	echo "*** Is the directory containing the qemu binary in your PATH" 1>&2; \
-	echo "***" 1>&2; exit 1; fi)
+	echo "*** or have you tried setting the QEMU variable in Makefile?" 1>&2; \
+	echo "***" 1>&2; exit 1)
 endif
 
-# eliminate default suffix rules
-.SUFFIXES: .c .S .h
-
-# delete target files if there is an error (or make is interrupted)
-.DELETE_ON_ERROR:
-
-# define compiler and flags
-
-HOSTCC		:= gcc
-HOSTCFLAGS	:= -g -Wall -O2
-
-CC		:= $(GCCPREFIX)gcc
-CFLAGS	:= -fno-builtin -Wall -ggdb -m32 -gstabs -nostdinc $(DEFS)
-CFLAGS	+= $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-CTYPE	:= c S
-
-LD      := $(GCCPREFIX)ld
-LDFLAGS	:= -m $(shell $(LD) -V | grep elf_i386 2>/dev/null)
-LDFLAGS	+= -nostdlib
-
-OBJCOPY := $(GCCPREFIX)objcopy
-OBJDUMP := $(GCCPREFIX)objdump
-
-COPY	:= cp
-MKDIR   := mkdir -p
-MV		:= mv
-RM		:= rm -f
-AWK		:= awk
-SED		:= sed
-SH		:= sh
-TR		:= tr
-TOUCH	:= touch -c
-
-OBJDIR	:= obj
-BINDIR	:= bin
-
-ALLOBJS	:=
-ALLDEPS	:=
-TARGETS	:=
-
-include tools/function.mk
-
-listf_cc = $(call listf,$(1),$(CTYPE))
-
-# for cc
-add_files_cc = $(call add_files,$(1),$(CC),$(CFLAGS) $(3),$(2),$(4))
-create_target_cc = $(call create_target,$(1),$(2),$(3),$(CC),$(CFLAGS))
-
-# for hostcc
-add_files_host = $(call add_files,$(1),$(HOSTCC),$(HOSTCFLAGS),$(2),$(3))
-create_target_host = $(call create_target,$(1),$(2),$(3),$(HOSTCC),$(HOSTCFLAGS))
-
-cgtype = $(patsubst %.$(2),%.$(3),$(1))
-objfile = $(call toobj,$(1))
-asmfile = $(call cgtype,$(call toobj,$(1)),o,asm)
-outfile = $(call cgtype,$(call toobj,$(1)),o,out)
-symfile = $(call cgtype,$(call toobj,$(1)),o,sym)
-
-# for match pattern
-match = $(shell echo $(2) | $(AWK) '{for(i=1;i<=NF;i++){if(match("$(1)","^"$$(i)"$$")){exit 1;}}}'; echo $$?)
-
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# include kernel/user
-
+CC = $(TOOLPREFIX)gcc
+AS = $(TOOLPREFIX)gas
+LD = $(TOOLPREFIX)ld
+OBJCOPY = $(TOOLPREFIX)objcopy
+OBJDUMP = $(TOOLPREFIX)objdump
 INCLUDE	+= include/
 
-CFLAGS	+= $(addprefix -I,$(INCLUDE))
+CFLAGS = -fno-pic -I $(INCLUDE) -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer
+#CFLAGS = -fno-pic -static -fno-builtin -fno-strict-aliasing -fvar-tracking -fvar-tracking-assignments -O0 -g -Wall -MD -gdwarf-2 -m32 -Werror -fno-omit-frame-pointer
+CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
+# FreeBSD ld wants ``elf_i386_fbsd''
+LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 
-LIBDIR	+= libs
+grenouille.img: bootblock kernel #fs.img
+	dd if=/dev/zero of=grenouille.img count=10000
+	dd if=bootblock of=grenouille.img conv=notrunc
+	dd if=kernel of=grenouille.img seek=1 conv=notrunc
 
-$(call add_files_cc,$(call listf_cc,$(LIBDIR)),libs,)
+# xv6memfs.img: bootblock kernelmemfs
+# 	dd if=/dev/zero of=xv6memfs.img count=10000
+# 	dd if=bootblock of=xv6memfs.img conv=notrunc
+# 	dd if=kernelmemfs of=xv6memfs.img seek=1 conv=notrunc
 
-# -------------------------------------------------------------------
-# kernel
-# 编译内核
-KINCLUDE	+= kern/debug/ \
-			   kern/driver/ \
-			   kern/trap/ \
-			   kern/mm/
+bootblock: boot/boot.S boot/bootmain.c
+	$(CC) $(CFLAGS) -fno-pic -O -nostdinc -I. -c boot/bootmain.c
+	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c boot/boot.S
+	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o bootblock.o boot.o bootmain.o
+	$(OBJDUMP) -S bootblock.o > bootblock.asm
+	$(OBJCOPY) -S -O binary -j .text bootblock.o bootblock
+	python3.6 ./tools/sign.py bootblock
 
-KSRCDIR		+= kern/init \
-			   kern/libs \
-			   kern/debug \
-			   kern/driver \
-			   kern/trap \
-			   kern/mm
+entryother: entryother.S
+	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c entryother.S
+	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7000 -o bootblockother.o entryother.o
+	$(OBJCOPY) -S -O binary -j .text bootblockother.o entryother
+	$(OBJDUMP) -S bootblockother.o > entryother.asm
 
-KCFLAGS		+= $(addprefix -I,$(KINCLUDE))
+initcode: initcode.S
+	$(CC) $(CFLAGS) -nostdinc -I. -c initcode.S
+	$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o initcode.out initcode.o
+	$(OBJCOPY) -S -O binary initcode.out initcode
+	$(OBJDUMP) -S initcode.o > initcode.asm
 
-$(call add_files_cc,$(call listf_cc,$(KSRCDIR)),kernel,$(KCFLAGS))
+kernel: $(OBJS) entry.o entryother initcode kernel.ld
+	$(LD) $(LDFLAGS) -T kernel.ld -o kernel entry.o $(OBJS) -b binary initcode entryother
+	$(OBJDUMP) -S kernel > kernel.asm
+	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
 
-KOBJS	= $(call read_packet,kernel libs)
+# kernelmemfs is a copy of kernel that maintains the
+# disk image in memory instead of writing to a disk.
+# This is not so useful for testing persistent storage or
+# exploring disk buffering implementations, but it is
+# great for testing the kernel on real hardware without
+# needing a scratch disk.
+MEMFSOBJS = $(filter-out ide.o,$(OBJS)) memide.o
+kernelmemfs: $(MEMFSOBJS) entry.o entryother initcode kernel.ld fs.img
+	$(LD) $(LDFLAGS) -T kernel.ld -o kernelmemfs entry.o  $(MEMFSOBJS) -b binary initcode entryother fs.img
+	$(OBJDUMP) -S kernelmemfs > kernelmemfs.asm
+	$(OBJDUMP) -t kernelmemfs | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernelmemfs.sym
 
-# create kernel target
-kernel = $(call totarget,kernel)
+tags: $(OBJS) entryother.S _init
+	etags *.S *.c
 
-$(kernel): tools/kernel.ld
+vectors.S: vectors.pl
+	perl vectors.pl > vectors.S
 
-$(kernel): $(KOBJS)
-	@echo + ld $@
-	$(V)$(LD) $(LDFLAGS) -T tools/kernel.ld -o $@ $(KOBJS)
-	@$(OBJDUMP) -S $@ > $(call asmfile,kernel)
-	@$(OBJDUMP) -t $@ | $(SED) '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(call symfile,kernel)
+ULIB = ulib.o usys.o printf.o umalloc.o
 
-$(call create_target,kernel)
+_%: %.o $(ULIB)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $^
+	$(OBJDUMP) -S $@ > $*.asm
+	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $*.sym
 
-# -------------------------------------------------------------------
+_forktest: forktest.o $(ULIB)
+	# forktest has less library code linked in - needs to be small
+	# in order to be able to max out the proc table.
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _forktest forktest.o ulib.o usys.o
+	$(OBJDUMP) -S _forktest > forktest.asm
 
-#编译bootloader
-# create bootblock
-#列出boot
-bootfiles = $(call listf_cc, boot)
-#对boot下目录逐一编译
-#  for file in bootfiles:
-#		cc_compile(file, gcc, -flags -Os -nostdinc)
-$(foreach f,$(bootfiles),$(call cc_compile,$(f),$(CC),$(CFLAGS) -Os -nostdinc))
+mkfs: mkfs.c fs.h
+	gcc -Werror -Wall -o mkfs mkfs.c
 
-#设置bootblock的路径为  ./bin/bootblock
-bootblock = $(call totarget, bootblock)
+# Prevent deletion of intermediate files, e.g. cat.o, after first build, so
+# that disk image changes after first build are persistent until clean.  More
+# details:
+# http://www.gnu.org/software/make/manual/html_node/Chained-Rules.html
+.PRECIOUS: %.o
 
-#将boot目录下所有的obj文件链接至 ./bin/bootblock
-#并加签名
-$(bootblock): $(call toobj, $(bootfiles)) | $(call totarget,sign)
-	@echo + ld $@
-	$(V)$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 $^ -o $(call toobj,bootblock)
-	@$(OBJDUMP) -S $(call objfile,bootblock) > $(call asmfile,bootblock)
-	@$(OBJDUMP) -t $(call objfile,bootblock) | $(SED) '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(call symfile,bootblock)
-	@$(OBJCOPY) -S -O binary $(call objfile,bootblock) $(call outfile,bootblock)
-	@$(call totarget,sign) $(call outfile,bootblock) $(bootblock)
+UPROGS=\
+	_cat\
+	_echo\
+	_forktest\
+	_grep\
+	_init\
+	_kill\
+	_ln\
+	_ls\
+	_mkdir\
+	_rm\
+	_sh\
+	_stressfs\
+	_usertests\
+	_wc\
+	_zombie\
 
-$(call create_target, bootblock)
+fs.img: mkfs README $(UPROGS)
+	./mkfs fs.img README $(UPROGS)
 
-# -------------------------------------------------------------------
+-include *.d
 
-# 签名
-# create 'sign' tools
-$(call add_files_host,tools/sign.c,sign,sign)
-$(call create_target_host,sign,sign)
+clean: 
+	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
+	*.o *.d *.asm *.sym vectors.S bootblock entryother \
+	initcode initcode.out kernel xv6.img fs.img kernelmemfs mkfs \
+	.gdbinit \
+	$(UPROGS)
 
-# -------------------------------------------------------------------
+# make a printout
+FILES = $(shell grep -v '^\#' runoff.list)
+PRINT = runoff.list runoff.spec README toc.hdr toc.ftr $(FILES)
 
-# boot+kernel= 生成镜像
-# create grenouille.img
-# UCOREIMG :=  bin/grenouille.img 
-UCOREIMG	:= $(call totarget, grenouille.img)
+xv6.pdf: $(PRINT)
+	./runoff
+	ls -l xv6.pdf
 
-# /dev/null  ： 在类Unix系统中，/dev/null，或称空设备，是一个特殊的设备文件
-# 它丢弃一切写入其中的数据（但报告写入操作成功），读取它则会立即得到一个EOF。
-# 在程序员行话，尤其是Unix行话中，/dev/null 被称为位桶(bit bucket)或者黑洞(black hole)。
-# 空设备通常被用于丢弃不需要的输出流，或作为用于输入流的空文件。这些操作通常由重定向完成。
+print: xv6.pdf
 
+# run in emulators
 
-# /dev/zero  ： 在类UNIX 操作系统中, /dev/zero 是一个特殊的文件，当你读它的时候
-# ，它会提供无限的空字符(NULL, ASCII NUL, 0x00)。
-# 其中的一个典型用法是用它提供的字符流来覆盖信息，另一个常见用法是产生一个特定大小的空白文件。
-# BSD就是通过mmap把/dev/zero映射到虚地址空间实现共享内存的。
-# 可以使用mmap将/dev/zero映射到一个虚拟的内存空间，这个操作的效果等同于使用一段匿名的内存
-# （没有和任何文件相关）。
+bochs : fs.img xv6.img
+	if [ ! -e .bochsrc ]; then ln -s dot-bochsrc .bochsrc; fi
+	bochs -q
 
-#  dd - 用于复制文件并对原文件的内容进行转换和格式化处理，有需要的时候使用dd 对物理磁盘操作
-# bs=<字节数>：将ibs（输入）与欧巴桑（输出）设成指定的字节数；
-# cbs=<字节数>：转换时，每次只转换指定的字节数；
-# conv=<关键字>：指定文件转换的方式；
-# count=<区块数>：仅读取指定的区块数；
-# ibs=<字节数>：每次读取的字节数；
-# obs=<字节数>：每次输出的字节数；
-# of=<文件>：输出到文件；
-# seek=<区块数>：一开始输出时，跳过指定的区块数；
-# skip=<区块数>：一开始读取时，跳过指定的区块数；
-# --help：帮助；
-# --version：显示版本信息。
-
-
-# $@--目标文件，$^--所有的依赖文件，$<--第一个依赖文件。
-$(UCOREIMG): $(kernel) $(bootblock)
-	$(V)dd if=/dev/zero of=$@ count=10000
-	$(V)dd if=$(bootblock) of=$@ conv=notrunc
-	$(V)dd if=$(kernel) of=$@ seek=1 conv=notrunc
-
-$(call create_target, grenouille.img)
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-$(call finish_all)
-
-IGNORE_ALLDEPS	= clean \
-				  dist-clean \
-				  grade \
-				  touch \
-				  print-.+ \
-				  handin
-
-ifeq ($(call match,$(MAKECMDGOALS),$(IGNORE_ALLDEPS)),0)
--include $(ALLDEPS)
+# try to generate a unique GDB port
+GDBPORT = $(shell expr `id -u` % 5000 + 25000)
+# QEMU's gdb stub command line changed in 0.11
+QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
+	then echo "-gdb tcp::$(GDBPORT)"; \
+	else echo "-s -p $(GDBPORT)"; fi)
+ifndef CPUS
+CPUS := 2
 endif
+QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
-# files for grade script
+qemu: fs.img xv6.img
+	$(QEMU) -serial mon:stdio $(QEMUOPTS)
 
-TARGETS: $(TARGETS)
-all: $(TARGETS)
-.DEFAULT_GOAL := TARGETS
+qemu-memfs: xv6memfs.img
+	$(QEMU) -drive file=xv6memfs.img,index=0,media=disk,format=raw -smp $(CPUS) -m 256
 
-.PHONY: qemu qemu-nox debug debug-nox
-lab1-mon: $(UCOREIMG)
-	$(V)$(TERMINAL) -e "$(QEMU) -S -s -d in_asm -D $(BINDIR)/q.log -monitor stdio -hda $< -serial null"
-	$(V)sleep 2
-	$(V)$(TERMINAL) -e "gdb -q -x tools/lab1init"
-debug-mon: $(UCOREIMG)
-#	$(V)$(QEMU) -S -s -monitor stdio -hda $< -serial null &
-	$(V)$(TERMINAL) -e "$(QEMU) -S -s -monitor stdio -hda $< -serial null"
-	$(V)sleep 2
-	$(V)$(TERMINAL) -e "gdb -q -x tools/moninit"
-qemu-mon: $(UCOREIMG)
-	$(V)$(QEMU) -monitor stdio -hda $< -serial null
+qemu-nox: fs.img xv6.img
+	$(QEMU) -nographic $(QEMUOPTS)
 
-# -parallel dev
-#  Redirect the virtual parallel port to host device dev (same devices as the serial port). On Linux hosts, /dev/parportN can be used to use hardware devices
-#  connected on the corresponding host parallel port.
-#  This option can be used several times to simulate up to 3 parallel ports.
-#  Use "-parallel none" to disable all parallel ports.
+.gdbinit: .gdbinit.tmpl
+	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
 
-qemu: $(UCOREIMG)
-	# $(V)$(QEMU) -parallel stdio -drive file=$<,index=0,media=disk -serial null
-	$(V)$(QEMU) -parallel stdio -hda $< -serial null
+qemu-gdb: fs.img xv6.img .gdbinit
+	@echo "*** Now run 'gdb'." 1>&2
+	$(QEMU) -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
 
-qemu-nox: $(UCOREIMG)
-	$(V)$(QEMU) -serial mon:stdio -hda $< -nographic
-TERMINAL        :=gnome-terminal
-gdb: $(UCOREIMG)
-	$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null
-debug: $(UCOREIMG)
-	$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &
-	$(V)sleep 2
-	$(V)$(TERMINAL)  -e "gdb -q -x tools/gdbinit"
-	
-debug-nox: $(UCOREIMG)
-	$(V)$(QEMU) -S -s -serial mon:stdio -hda $< -nographic &
-	$(V)sleep 2
-	$(V)$(TERMINAL) -e "gdb -q -x tools/gdbinit"
+qemu-nox-gdb: fs.img xv6.img .gdbinit
+	@echo "*** Now run 'gdb'." 1>&2
+	$(QEMU) -nographic $(QEMUOPTS) -S $(QEMUGDB)
 
-.PHONY: grade touch
+# CUT HERE
+# prepare dist for students
+# after running make dist, probably want to
+# rename it to rev0 or rev1 or so on and then
+# check in that version.
 
-GRADE_GDB_IN	:= .gdb.in
-GRADE_QEMU_OUT	:= .qemu.out
-HANDIN			:= proj$(PROJ)-handin.tar.gz
+EXTRA=\
+	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
+	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
+	printf.c umalloc.c\
+	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
+	.gdbinit.tmpl gdbutil\
 
-TOUCH_FILES		:= kern/trap/trap.c
+dist:
+	rm -rf dist
+	mkdir dist
+	for i in $(FILES); \
+	do \
+		grep -v PAGEBREAK $$i >dist/$$i; \
+	done
+	sed '/CUT HERE/,$$d' Makefile >dist/Makefile
+	echo >dist/runoff.spec
+	cp $(EXTRA) dist
 
-MAKEOPTS		:= --quiet --no-print-directory
+dist-test:
+	rm -rf dist
+	make dist
+	rm -rf dist-test
+	mkdir dist-test
+	cp dist/* dist-test
+	cd dist-test; $(MAKE) print
+	cd dist-test; $(MAKE) bochs || true
+	cd dist-test; $(MAKE) qemu
 
-grade:
-	$(V)$(MAKE) $(MAKEOPTS) clean
-	$(V)$(SH) tools/grade.sh
+# update this rule (change rev#) when it is time to
+# make a new revision.
+tar:
+	rm -rf /tmp/xv6
+	mkdir -p /tmp/xv6
+	cp dist/* dist/.gdbinit.tmpl /tmp/xv6
+	(cd /tmp; tar cf - xv6) | gzip >xv6-rev10.tar.gz  # the next one will be 10 (9/17)
 
-touch:
-	$(V)$(foreach f,$(TOUCH_FILES),$(TOUCH) $(f))
-
-print-%:
-	@echo $($(shell echo $(patsubst print-%,%,$@) | $(TR) [a-z] [A-Z]))
-
-.PHONY: clean dist-clean handin packall
-clean:
-	$(V)$(RM) $(GRADE_GDB_IN) $(GRADE_QEMU_OUT)
-	-$(RM) -r $(OBJDIR) $(BINDIR)
-
-dist-clean: clean
-	-$(RM) $(HANDIN)
-
-handin: packall
-	@echo Please visit http://learn.tsinghua.edu.cn and upload $(HANDIN). Thanks!
-
-packall: clean
-	@$(RM) -f $(HANDIN)
-	@tar -czf $(HANDIN) `find . -type f -o -type d | grep -v '^\.*$$' | grep -vF '$(HANDIN)'`
-
+.PHONY: dist-test dist
