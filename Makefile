@@ -79,7 +79,7 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 INCLUDE	+= include/
 
-CFLAGS = -fno-pic -I $(INCLUDE) -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer
+CFLAGS = -fno-pic -I $(INCLUDE) -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer
 #CFLAGS = -fno-pic -static -fno-builtin -fno-strict-aliasing -fvar-tracking -fvar-tracking-assignments -O0 -g -Wall -MD -gdwarf-2 -m32 -Werror -fno-omit-frame-pointer
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
@@ -98,7 +98,7 @@ grenouille.img: bootblock kernel #fs.img
 
 bootblock: boot/boot.S boot/bootmain.c
 	$(CC) $(CFLAGS) -fno-pic -O -nostdinc -I. -c boot/bootmain.c
-	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c boot/boot.S
+	$(CC) $(CFLAGS) -fno-pic -nostdinc -I ./boot/ -c boot/boot.S
 	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o bootblock.o boot.o bootmain.o
 	$(OBJDUMP) -S bootblock.o > bootblock.asm
 	$(OBJCOPY) -S -O binary -j .text bootblock.o bootblock
