@@ -19,7 +19,7 @@ def main():
 	buf.write(bytes(0xAA))
 	with open(boot_block_path, 'wb') as f:
 		f.seek(0)
-		print("holy fuck:", buf.getvalue())
+		# print("holy fuck:", buf.getvalue())
 		f.write(buf.getvalue())
 	return 0
 

@@ -3,7 +3,7 @@
 
 OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 OUTPUT_ARCH(i386)
-ENTRY(kern_init)
+ENTRY(_start)
 
 SECTIONS {
 	/* Load the kernel at this address: "." means the current address */

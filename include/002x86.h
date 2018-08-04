@@ -1,7 +1,7 @@
 #ifndef __LIBS_X86_H__
 #define __LIBS_X86_H__
 
-#include <defs.h>
+#include <000defs.h>
 
 #define do_div(n, base) ({                                        \
     unsigned long __upper, __low, __high, __mod, __base;        \

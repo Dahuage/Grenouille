@@ -1,33 +1,42 @@
 OBJS = \
-	init.o\
-	# bio.o\
-	# console.o\
-	# exec.o\
-	# file.o\
-	# fs.o\
-	# ide.o\
-	# ioapic.o\
-	# kalloc.o\
-	# kbd.o\
-	# lapic.o\
-	# log.o\
-	# main.o\
-	# mp.o\
-	# picirq.o\
-	# pipe.o\
-	# proc.o\
-	# sleeplock.o\
+
 	# spinlock.o\
+	# kalloc.o\   
+	# vm.o\
+	# mp.o\
 	# string.o\
+
+	# kbd.o\
+	# console.o\
+
+		
+	# vectors.o\
+	# trapasm.o\
+	# trap.o\
+	# picirq.o\
+	# lapic.o\
+	# ioapic.o\
+	
+	# kinit.o\       #>> 内核的第二入口，第一入口是初始化分页机制entry.s
+
+	# proc.o\
+	# sysproc.o\
+	# exec.o\
+
+	# pipe.o\
+	# sleeplock.o\
+	
 	# swtch.o\
 	# syscall.o\
 	# sysfile.o\
-	# sysproc.o\
-	# trapasm.o\
-	# trap.o\
+	# bio.o\
+	# file.o\
+	# fs.o\
+	# ide.o\
 	# uart.o\
-	# vectors.o\
-	# vm.o\
+	# log.o\
+
+		
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
@@ -116,10 +125,21 @@ initcode: initcode.S
 	$(OBJCOPY) -S -O binary initcode.out initcode
 	$(OBJDUMP) -S initcode.o > initcode.asm
 
-kernel: $(OBJS) entry.o entryother initcode kernel.ld
-	$(LD) $(LDFLAGS) -T kernel.ld -o kernel entry.o $(OBJS) -b binary initcode entryother
+# kernel: $(OBJS) entry.o entryother initcode kernel.ld
+# 	$(LD) $(LDFLAGS) -T kernel.ld -o kernel entry.o $(OBJS) -b binary initcode entryother
+# 	$(OBJDUMP) -S kernel > kernel.asm
+# 	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
+
+# we assume single cpu 
+kernel: $(OBJS) entry.o  initcode kernel.ld
+	$(LD) $(LDFLAGS) -T kernel.ld -o kernel entry.o $(OBJS) -b binary initcode
 	$(OBJDUMP) -S kernel > kernel.asm
 	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
+
+
+
+
+
 
 # kernelmemfs is a copy of kernel that maintains the
 # disk image in memory instead of writing to a disk.
@@ -136,8 +156,8 @@ kernelmemfs: $(MEMFSOBJS) entry.o entryother initcode kernel.ld fs.img
 tags: $(OBJS) entryother.S _init
 	etags *.S *.c
 
-vectors.S: vectors.pl
-	perl vectors.pl > vectors.S
+vectors.S: vectors.py
+	python3 vectors.py > vectors.S
 
 ULIB = ulib.o usys.o printf.o umalloc.o
 

@@ -1,7 +1,7 @@
 #ifndef __LIBS_ELF_H__
 #define __LIBS_ELF_H__
 
-#include <defs.h>
+#include <000defs.h>
 
 /* 读apue的时候，一直困惑的魔数 */
 #define ELF_MAGIC    0x464C457FU            // "\x7FELF" in little endian

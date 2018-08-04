@@ -8,9 +8,9 @@
  */
 
 
-#include <defs.h> //类型宏
-#include <elf.h>  //elf结构声明
-#include <x86.h>  //x86底层io
+#include <000defs.h> //类型宏
+#include <001elf.h>  //elf结构声明
+#include <002x86.h>  //x86底层io
 
 #define SECTSIZE    512
 /*
