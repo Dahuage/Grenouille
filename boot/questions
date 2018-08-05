@@ -18,9 +18,9 @@
 	操作系统的img整体更像一个多级火箭。每一级都会被临时地写在内存中，用于推进内核升空。
 	等完成各自的任务就会被丢弃。占用的内存也会被覆写。
 
-			/\
-		   /  \
-		  /bios\        0xfffffff0-0xffffffff(mapped to eprom)
+	      /\
+	     /  \
+	    /bios\        0xfffffff0-0xffffffff(mapped to eprom)
          /------\---------------------------------------------
         /        \
        /bootloader\               0x7c00-0x7e00 512Byte

@@ -19,9 +19,10 @@
 # }
 
 #include "asm.h"
-#include "memlayout.h"
-#include "mmu.h"
-#include "param.h"
+#include "100param.h"
+#include "101memlayout.h"
+#include "102mmu.h"
+
 
 # Multiboot header.  Data to direct multiboot loader.
 .p2align 2
@@ -59,6 +60,7 @@ entry:
   orl     $(CR0_PG|CR0_WP), %eax
   movl    %eax, %cr0
 
+  movl $stack, %eax
   # Set up the stack pointer.
   movl $(stack + KSTACKSIZE), %esp
 
@@ -66,7 +68,7 @@ entry:
   # high addresses. The indirect call is needed because
   # the assembler produces a PC-relative instruction
   # for a direct jump.
-  mov $main, %eax
+  mov $kernel_init, %eax
   jmp *%eax
 
 .comm stack, KSTACKSIZE

@@ -1,31 +1,23 @@
 OBJS = \
-
+	kinit.o\
 	# spinlock.o\
-	# kalloc.o\   
+	# kalloc.o\
 	# vm.o\
 	# mp.o\
 	# string.o\
-
 	# kbd.o\
 	# console.o\
-
-		
 	# vectors.o\
 	# trapasm.o\
 	# trap.o\
 	# picirq.o\
 	# lapic.o\
 	# ioapic.o\
-	
-	# kinit.o\       #>> 内核的第二入口，第一入口是初始化分页机制entry.s
-
 	# proc.o\
 	# sysproc.o\
 	# exec.o\
-
 	# pipe.o\
 	# sleeplock.o\
-	
 	# swtch.o\
 	# syscall.o\
 	# sysfile.o\
@@ -36,7 +28,8 @@ OBJS = \
 	# uart.o\
 	# log.o\
 
-		
+
+
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
@@ -88,10 +81,10 @@ OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 INCLUDE	+= include/
 
-CFLAGS = -fno-pic -I $(INCLUDE) -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer
+CFLAGS = -fno-pic -I $(INCLUDE) -I ./boot/ -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32  -fno-omit-frame-pointer
 #CFLAGS = -fno-pic -static -fno-builtin -fno-strict-aliasing -fvar-tracking -fvar-tracking-assignments -O0 -g -Wall -MD -gdwarf-2 -m32 -Werror -fno-omit-frame-pointer
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
-ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
+ASFLAGS = -m32 -gdwarf-2 -Wa,-divide -I ./boot/ -I ./include -fno-builtin
 # FreeBSD ld wants ``elf_i386_fbsd''
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 
@@ -111,7 +104,7 @@ bootblock: boot/boot.S boot/bootmain.c
 	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o bootblock.o boot.o bootmain.o
 	$(OBJDUMP) -S bootblock.o > bootblock.asm
 	$(OBJCOPY) -S -O binary -j .text bootblock.o bootblock
-	python3.5 ./tools/sign.py bootblock
+	python3.6 ./tools/sign.py bootblock
 
 entryother: entryother.S
 	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c entryother.S
@@ -131,8 +124,8 @@ initcode: initcode.S
 # 	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
 
 # we assume single cpu 
-kernel: $(OBJS) entry.o  initcode kernel.ld
-	$(LD) $(LDFLAGS) -T kernel.ld -o kernel entry.o $(OBJS) -b binary initcode
+kernel: $(OBJS) entry.o  ./tools/kernel.ld
+	$(LD) $(LDFLAGS) -T ./tools/kernel.ld -o kernel entry.o $(OBJS) #-b binary initcode
 	$(OBJDUMP) -S kernel > kernel.asm
 	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
 
@@ -157,7 +150,7 @@ tags: $(OBJS) entryother.S _init
 	etags *.S *.c
 
 vectors.S: vectors.py
-	python3 vectors.py > vectors.S
+	python3.6 vectors.py > vectors.S
 
 ULIB = ulib.o usys.o printf.o umalloc.o
 
@@ -235,9 +228,13 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 ifndef CPUS
 CPUS := 2
 endif
-QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
+# QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
+QEMUOPTS = -drive file=grenouille.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
-qemu: fs.img xv6.img
+# qemu: fs.img xv6.img
+# 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
+
+qemu: grenouille.img
 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
 
 qemu-memfs: xv6memfs.img
@@ -249,7 +246,11 @@ qemu-nox: fs.img xv6.img
 .gdbinit: .gdbinit.tmpl
 	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
 
-qemu-gdb: fs.img xv6.img .gdbinit
+# qemu-gdb: fs.img xv6.img .gdbinit
+# 	@echo "*** Now run 'gdb'." 1>&2
+# 	$(QEMU) -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
+
+qemu-gdb: grenouille.img ./tools/gdbinit
 	@echo "*** Now run 'gdb'." 1>&2
 	$(QEMU) -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
 
