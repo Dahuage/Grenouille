@@ -1,7 +1,7 @@
-#include <x86.h>
-#include <defs.h>
-#include <memlayout.h>
-#include <trap.h>
+#include <000defs.h>
+#include <002x86.h>
+#include <103mmu.h>
+#include <200trap.h>
 
 
 /*

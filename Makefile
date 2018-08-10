@@ -1,16 +1,24 @@
 OBJS = \
 	kinit.o\
+	\
+	picirq.o\
+	console.o\
+	clock.o\
+	\
+	trapentry.o\
+	vectors.o\
+	trap.o\
+	idt.o\
+	\
+	string.o\
+	stdio.o\
+	printfmt.o\
+	
+	# vectors.o\
 	# spinlock.o\
 	# kalloc.o\
 	# vm.o\
 	# mp.o\
-	# string.o\
-	# kbd.o\
-	# console.o\
-	# vectors.o\
-	# trapasm.o\
-	# trap.o\
-	# picirq.o\
 	# lapic.o\
 	# ioapic.o\
 	# proc.o\
@@ -104,7 +112,7 @@ bootblock: boot/boot.S boot/bootmain.c
 	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o bootblock.o boot.o bootmain.o
 	$(OBJDUMP) -S bootblock.o > bootblock.asm
 	$(OBJCOPY) -S -O binary -j .text bootblock.o bootblock
-	python3.6 ./tools/sign.py bootblock
+	python3 ./tools/sign.py bootblock
 
 entryother: entryother.S
 	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c entryother.S
@@ -149,8 +157,8 @@ kernelmemfs: $(MEMFSOBJS) entry.o entryother initcode kernel.ld fs.img
 tags: $(OBJS) entryother.S _init
 	etags *.S *.c
 
-vectors.S: vectors.py
-	python3.6 vectors.py > vectors.S
+vectors.S: ./tools/vector.py
+	python3 ./tools/vector.py > vectors.S
 
 ULIB = ulib.o usys.o printf.o umalloc.o
 

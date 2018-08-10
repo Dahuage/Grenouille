@@ -1,0 +1,36 @@
+#1. cons_init中分别初始化键盘,cga,com1.对于com1与键盘,初始化工作完成后分别调用了
+    pic_enable(IRQ_KBD), pic_enable(IRP_COM1).但是此时pic本身尚未初始化。如
+    代码所示。
+    ```C
+    static uint16_t irq_mask = 0xFFFF & ~(1 << IRQ_SLAVE);
+
+    static void
+	pic_setmask(uint16_t mask) {
+    	irq_mask = mask;
+    	//did_init == 0！！！！！
+    	if (did_init) {
+        	outb(IO_PIC1 + 1, mask);
+        	outb(IO_PIC2 + 1, mask >> 8);
+    	}
+	}
+
+    void
+    pic_enable(unsigned int irq) {
+        pic_setmask(irq_mask & ~(1 << irq));
+    }
+
+    ```
+    那么问题来了。这个初始化是成功的还是失败的？若是成功的？为什么。若是失败的？在什么
+    地方做了补救？
+
+    答： 初始化是成功。
+        因为，仔细观察picirq.c代码。代码巧妙的一逼！
+        各种硬件初始化中注册irq的代码，并没有实际进行注册。
+        而是修改了静态数据区中iqr的掩码。
+        在irq_init中，载入了最终的掩码。mission success!
+
+#2. vag与键盘就不说了。com1、lpt及串口什么鬼？可不可以不要？
+
+
+
+    

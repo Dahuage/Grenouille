@@ -3,7 +3,11 @@
 
 #include <000defs.h>
 
-/* 读apue的时候，一直困惑的魔数 */
+
+/* 
+ * 读apue的时候，一直困惑的魔数
+ * readelf -a file 查看
+ */
 #define ELF_MAGIC    0x464C457FU            // "\x7FELF" in little endian
 
 /* file header */
