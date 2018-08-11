@@ -29,7 +29,8 @@
         而是修改了静态数据区中iqr的掩码。
         在irq_init中，载入了最终的掩码。mission success!
 
-#2. vag与键盘就不说了。com1、lpt及串口什么鬼？可不可以不要？
+#2. vag与键盘is necessary。com1、lpt及串口什么鬼？necessary？
+#3. 
 
 
 

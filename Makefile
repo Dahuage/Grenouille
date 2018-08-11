@@ -1,43 +1,43 @@
 OBJS = \
-	kinit.o\
+	100kinit.o\
 	\
-	picirq.o\
-	console.o\
-	clock.o\
-	\
-	trapentry.o\
+	101trap.o\
+	102trapentry.o\
+	103idt.o\
 	vectors.o\
-	trap.o\
-	idt.o\
+	\
+	104console.o\
+	105clock.o\
+	106picirq.o\
 	\
 	string.o\
 	stdio.o\
 	printfmt.o\
 	
-	# vectors.o\
-	# spinlock.o\
 	# kalloc.o\
 	# vm.o\
 	# mp.o\
-	# lapic.o\
-	# ioapic.o\
-	# proc.o\
-	# sysproc.o\
+
+	# proc.o\	
 	# exec.o\
 	# pipe.o\
-	# sleeplock.o\
-	# swtch.o\
+	# sysproc.o\
 	# syscall.o\
-	# sysfile.o\
-	# bio.o\
+
 	# file.o\
 	# fs.o\
+	# sysfile.o\
+
+	# lapic.o\
+	# ioapic.o\
+	# spinlock.o\
+	# sleeplock.o\
+	# swtch.o\
+
+	# bio.o\
 	# ide.o\
 	# uart.o\
 	# log.o\
-
-
-
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
@@ -96,6 +96,36 @@ ASFLAGS = -m32 -gdwarf-2 -Wa,-divide -I ./boot/ -I ./include -fno-builtin
 # FreeBSD ld wants ``elf_i386_fbsd''
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 
+
+
+# /dev/null  ： 在类Unix系统中，/dev/null，或称空设备，是一个特殊的设备文件
+# 它丢弃一切写入其中的数据（但报告写入操作成功），读取它则会立即得到一个EOF。
+# 在程序员行话，尤其是Unix行话中，/dev/null 被称为位桶(bit bucket)或者黑洞(black hole)。
+# 空设备通常被用于丢弃不需要的输出流，或作为用于输入流的空文件。这些操作通常由重定向完成。
+
+
+# /dev/zero  ： 在类UNIX 操作系统中, /dev/zero 是一个特殊的文件，当你读它的时候
+# ，它会提供无限的空字符(NULL, ASCII NUL, 0x00)。
+# 其中的一个典型用法是用它提供的字符流来覆盖信息，另一个常见用法是产生一个特定大小的空白文件。
+# BSD就是通过mmap把/dev/zero映射到虚地址空间实现共享内存的。
+# 可以使用mmap将/dev/zero映射到一个虚拟的内存空间，这个操作的效果等同于使用一段匿名的内存
+# （没有和任何文件相关）。
+
+#  dd - 用于复制文件并对原文件的内容进行转换和格式化处理，有需要的时候使用dd 对物理磁盘操作
+# bs=<字节数>：将ibs（输入）与欧巴桑（输出）设成指定的字节数；
+# cbs=<字节数>：转换时，每次只转换指定的字节数；
+# conv=<关键字>：指定文件转换的方式；
+# count=<区块数>：仅读取指定的区块数；
+# ibs=<字节数>：每次读取的字节数；
+# obs=<字节数>：每次输出的字节数；
+# of=<文件>：输出到文件；
+# seek=<区块数>：一开始输出时，跳过指定的区块数；
+# skip=<区块数>：一开始读取时，跳过指定的区块数；
+# --help：帮助；
+# --version：显示版本信息。
+
+
+# $@--目标文件，$^--所有的依赖文件，$<--第一个依赖文件。
 grenouille.img: bootblock kernel #fs.img
 	dd if=/dev/zero of=grenouille.img count=10000
 	dd if=bootblock of=grenouille.img conv=notrunc
@@ -114,17 +144,17 @@ bootblock: boot/boot.S boot/bootmain.c
 	$(OBJCOPY) -S -O binary -j .text bootblock.o bootblock
 	python3 ./tools/sign.py bootblock
 
-entryother: entryother.S
-	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c entryother.S
-	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7000 -o bootblockother.o entryother.o
-	$(OBJCOPY) -S -O binary -j .text bootblockother.o entryother
-	$(OBJDUMP) -S bootblockother.o > entryother.asm
+# entryother: entryother.S
+# 	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c entryother.S
+# 	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7000 -o bootblockother.o entryother.o
+# 	$(OBJCOPY) -S -O binary -j .text bootblockother.o entryother
+# 	$(OBJDUMP) -S bootblockother.o > entryother.asm
 
-initcode: initcode.S
-	$(CC) $(CFLAGS) -nostdinc -I. -c initcode.S
-	$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o initcode.out initcode.o
-	$(OBJCOPY) -S -O binary initcode.out initcode
-	$(OBJDUMP) -S initcode.o > initcode.asm
+# initcode: initcode.S
+# 	$(CC) $(CFLAGS) -nostdinc -I. -c initcode.S
+# 	$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o initcode.out initcode.o
+# 	$(OBJCOPY) -S -O binary initcode.out initcode
+# 	$(OBJDUMP) -S initcode.o > initcode.asm
 
 # kernel: $(OBJS) entry.o entryother initcode kernel.ld
 # 	$(LD) $(LDFLAGS) -T kernel.ld -o kernel entry.o $(OBJS) -b binary initcode entryother
@@ -132,13 +162,10 @@ initcode: initcode.S
 # 	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
 
 # we assume single cpu 
-kernel: $(OBJS) entry.o  ./tools/kernel.ld
-	$(LD) $(LDFLAGS) -T ./tools/kernel.ld -o kernel entry.o $(OBJS) #-b binary initcode
+kernel: $(OBJS) 000entry.o  ./tools/kernel.ld
+	$(LD) $(LDFLAGS) -T ./tools/kernel.ld -o kernel 000entry.o $(OBJS) #-b binary initcode
 	$(OBJDUMP) -S kernel > kernel.asm
 	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
-
-
-
 
 
 
@@ -234,14 +261,14 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 2
+# CPUS := 2
+CPUS := 1
 endif
 # QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 QEMUOPTS = -drive file=grenouille.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
 # qemu: fs.img xv6.img
 # 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
-
 qemu: grenouille.img
 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
 
@@ -258,7 +285,7 @@ qemu-nox: fs.img xv6.img
 # 	@echo "*** Now run 'gdb'." 1>&2
 # 	$(QEMU) -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
 
-qemu-gdb: grenouille.img ./tools/gdbinit
+qemu-gdb: grenouille.img .gdbinit
 	@echo "*** Now run 'gdb'." 1>&2
 	$(QEMU) -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
 
