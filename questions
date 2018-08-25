@@ -30,7 +30,22 @@
         在irq_init中，载入了最终的掩码。mission success!
 
 #2. vag与键盘is necessary。com1、lpt及串口什么鬼？necessary？
-#3. 
+    重构时处理
+
+#3. ucore 用bios int 0x15探测到物理内存空间大小
+    ```shell dmesg可得到物理内存可用状况。
+     1 [    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009dfff] usable
+     2 [    0.000000] BIOS-e820: [mem 0x000000000009e000-0x000000000009ffff] reserved
+     3 [    0.000000] BIOS-e820: [mem 0x00000000000e0000-0x00000000000fffff] reserved
+     4 [    0.000000] BIOS-e820: [mem 0x0000000000100000-0x00000000efffffff] usable
+     5 [    0.000000] BIOS-e820: [mem 0x00000000fc000000-0x00000000ffffffff] reserved
+     6 [    0.000000] BIOS-e820: [mem 0x0000000100000000-0x000000040fffffff] usable
+     ---------------------------------------------------------------------------------
+    ```
+
+#4. 为什么把要把虚拟空间的0-4M, KERNEL_BASE-KERNELBASE+4M映射到物理地址的0-4M?
+    
+
 
 
 

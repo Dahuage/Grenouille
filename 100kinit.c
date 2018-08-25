@@ -2,6 +2,7 @@
 #include <002x86.h>
 #include <102mmu.h>
 #include <101memlayout.h>
+
 #include <203console.h>
 
 #include <stdio.h>
@@ -11,9 +12,16 @@ void kernel_init(void) __attribute__((noreturn));
 
 void
 kernel_init(void){
+	//初始化输出与键盘
 	cons_init();
 	char *message = "I worked my ass off to figure out this\n";
 	cprintf(message);
+	//初始化idt
+	//初始化时钟
+	//初始化中断控制器
+	//初始化进程表
+	//初始化文件系统
+	//
 	while(1);
 }
 
