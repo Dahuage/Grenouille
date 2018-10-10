@@ -28,16 +28,26 @@
  */
 
 
-//需要一个表示一块内存的东西，内存以页框为单位
-struct Page {};
-
 // 搞一个管理器对象
 struct physical_mem_manager {
 
 };
 
-// 初始化无力内存管理
-void init_physical_mem_manager(void);
+// 初始化物理内存管理
+// 声明一个全局内存部长
+// 物理内存的分配回收这孙子说了算。
+const struct physical_mem_manager *memery_minister;
+
+static void 
+init_physical_mem_manager(void){
+	memery_minister = &physical_mem_manager;
+	memery_minister->init();
+};
+
+static void
+page_init(void){
+	
+};
 
 // 探测物理地址大小 
 void detect_physical_mem_size(void);
@@ -51,3 +61,16 @@ void map_used_mem(void);
 void alloc_mem(void);
 // 释放内存
 void free_mem(void);
+
+/*
+ * 探测现有物理内存空间
+ * 将所有物理空间抽象到一个链表中用以管理 
+ * 保存空闲空间&映射已占用空间
+ * gdt&tss处理
+ * 
+ */
+void
+physical_mem_manage_init(void){
+	init_physical_mem_manager();
+	page_init();
+}
