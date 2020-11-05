@@ -30,7 +30,7 @@
 
 // 搞一个管理器对象
 struct physical_mem_manager {
-
+	void* init;
 };
 
 // 初始化物理内存管理
